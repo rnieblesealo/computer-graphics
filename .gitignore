@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Pygame
+*.pygame
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Other
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.swn
+*.orig
+*.pyc
+*.pdb
+*.coverage
+*.egg
+*.egg-info/
+*.env
+.env.*
