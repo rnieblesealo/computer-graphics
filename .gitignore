@@ -10,7 +10,7 @@ build/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
+# *.ipynb
 
 # Pygame
 *.pygame
