@@ -63,8 +63,9 @@ uniform float dx;
 uniform float dy;
 
 void main() {
-    float dxAngled = dx * cos(angle);
-    float dyAngled = dy * sin(angle);
+    float angleInRadians = radians(angle);
+    float dxAngled = dx * cos(angleInRadians);
+    float dyAngled = dy * sin(angleInRadians);
 
     vec3 updatedPosition = (position * scale) + vec3(dxAngled, dyAngled, 0);
 
