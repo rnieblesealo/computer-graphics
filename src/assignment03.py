@@ -1,9 +1,13 @@
 import pygame
 import moderngl
 import numpy
+import math
 
 # Start pygame
 pygame.init()
+
+# Start clock
+clock = pygame.time.Clock()
 
 # Set window title
 pygame.display.set_caption("Assignment 2: Rafael Niebles")
@@ -24,34 +28,23 @@ screen_height = 500
 display = pygame.display.set_mode((screen_width, screen_height),
                                   pygame.DOUBLEBUF | pygame.OPENGL)
 
-# Init clock
-clock = pygame.time.Clock()
-
 # Make ModernGL context
 mgl_ctx = moderngl.create_context()
 
-# Define vertices
-# Assignment specifies:
-# - [x] 2 triangles, upper and lower to draw diamond
-# - [x] 0.8 center offset
-# - [x] 0 z-position
-vertices = numpy.array([
+# Diamond =====================================================================
+
+diamond_vertices = numpy.array([
     0, 0.8, 0,
     -0.8, 0, 0,
     0.8, 0, 0,  # Upper triangle
     0, -0.8, 0,
     -0.8, 0, 0,
     0.8, 0, 0,  # Lower triangle
-], dtype="f4")  # Each float takes up 4 bytes; float 4; f4! This allows us to adjust precision
+], dtype="f4")  # Each float takes up 4 bytes; float 4; f4! This allows precision adjust
 
-# Create vertex buffer from vertex data
-# A vertex buffer stores vertices
-# Good practice to convert to bytes since this is how OpenGL expects them
-vbo = mgl_ctx.buffer(vertices.tobytes())
+diamond_vbo = mgl_ctx.buffer(diamond_vertices.tobytes())
 
-# Vertex shader does things to vertex data!
-# This is setting all vertex positions to exactly match the input
-vertex_shader_code = """
+diamond_vertex_shader_code = """
 #version 330 core
 
 in vec3 position; // Input position
@@ -78,8 +71,7 @@ void main() {
 }
 """
 
-# This shader applies the fragment color
-fragment_shader_code = """
+diamond_fragment_shader_code = """
 #version 330 core
 
 in vec3 v_color; // Input color from vertex shader
@@ -90,35 +82,75 @@ void main() {
 }
 """
 
-program = mgl_ctx.program(
-    vertex_shader=vertex_shader_code,
-    fragment_shader=fragment_shader_code
+diamond_program = mgl_ctx.program(
+    vertex_shader=diamond_vertex_shader_code,
+    fragment_shader=diamond_fragment_shader_code
 )
 
-# Create vertex array object
-# It encapsulates state needed to send vertex data to graphics pipeline
-vao = mgl_ctx.vertex_array(
-    program,
-    [(vbo, "3f", "position")]  # Specify VBO, format of vertex data (3 floats per vertex) and name of vertex data array (we use "position") and name of vertex data array (we use "position") and name of vertex data array (we use "position") and name of vertex data array (we used name "position")
+diamond_vao = mgl_ctx.vertex_array(
+    diamond_program,
+    # VBO, format of vertex data (3 floats per vertex), desired name of vertex arr.
+    [(diamond_vbo, "3f", "position")]
 )
 
 # Set the uniform variable for scaling
 scale_value = 0.1
-program["scale"].value = scale_value
+diamond_program["scale"].value = scale_value
 
-# Main loop!
-
-# BG clear color
-# Needs to be between 0-1 to match OpenGL expectation
-# The 0-255 RGB values were colorpicked from assignment sample image
-clear_color_r_norm = 118/255
-clear_color_g_norm = 115/255
-clear_color_b_norm = 24/255
-clear_color_a_norm = 1
-
-fps = 60
+# Positioning angle for other
 angle = 0
 angle_increment_per_second = 6
+
+# Line ========================================================================
+
+line_vertices = numpy.array([
+    0, 0, 0,  # Start
+    0, 0.5, 0,  # Finish
+], dtype="f4")
+
+line_vbo = mgl_ctx.buffer(line_vertices.tobytes())
+
+line_vertex_shader_code = """
+#version 330 core
+layout(location = 0) in vec3 position;
+
+void main() {
+    gl_Position = vec4(position, 1.0);
+}
+"""
+
+line_fragment_shader_code = """
+#version 330 core
+out vec4 fragColor;
+
+void main() {
+    fragColor = vec4(0.0, 0.0, 0.0, 0.0);
+}
+"""
+
+line_program = mgl_ctx.program(
+    vertex_shader=line_vertex_shader_code,
+    fragment_shader=line_fragment_shader_code
+)
+
+line_vao = mgl_ctx.vertex_array(
+    line_program,
+    [(line_vbo, "3f", "position")]
+)
+
+# Main Loop ===================================================================
+
+# Framerate
+fps = 60
+
+# BG color
+clear_color_r_norm = 115/255
+clear_color_g_norm = 115/255
+clear_color_b_norm = 115/255
+clear_color_a_norm = 1
+
+# Displacement of line and diamond
+displacement = 0.5
 
 running = True
 while running:
@@ -126,25 +158,35 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    # OpenGL bypasses Pygame at this point, so we must specify clear color to the ModernGL context
+    # OpenGL bypasses Pygame at this point; specify clear color to MGL ourselves
     mgl_ctx.clear(color=(clear_color_r_norm, clear_color_g_norm,
                   clear_color_b_norm, clear_color_a_norm))
 
     # Draw without displacement
-    program["dx"].value = 0
-    program["dy"].value = 0
+    diamond_program["dx"].value = 0
+    diamond_program["dy"].value = 0
 
-    vao.render(moderngl.TRIANGLES)
+    diamond_vao.render(moderngl.TRIANGLES)
 
     # Draw with displacement and angling
     dt = clock.tick(fps) / 1000
     angle += angle_increment_per_second * dt
-    program["angle"].value = angle
+    diamond_program["angle"].value = angle
 
-    program["dx"].value = 0.5
-    program["dy"].value = 0.5
+    diamond_program["dx"].value = displacement
+    diamond_program["dy"].value = displacement
 
-    vao.render(moderngl.TRIANGLES)
+    diamond_vao.render(moderngl.TRIANGLES)
+
+    # Adjust position of end vertex (placed at center of orbiting rect)
+    line_vertices[3] = displacement * math.cos(math.radians(angle))
+    line_vertices[4] = displacement * math.sin(math.radians(angle))
+
+    # Write new vertex pos
+    line_vbo.write(line_vertices)
+
+    # Render line
+    line_vao.render(moderngl.LINES)
 
     # Switch to back buffer
     pygame.display.flip()
