@@ -10,7 +10,7 @@ pygame.init()
 clock = pygame.time.Clock()
 
 # Set window title
-pygame.display.set_caption("Assignment 2: Rafael Niebles")
+pygame.display.set_caption("Assignment 3: Rafael Niebles")
 
 # We will use OpenGL rendering to Pygame window
 # Doing this on Mac requires requesting an OpenGL context and setting forward compatible flag
@@ -186,7 +186,7 @@ while running:
     line_vbo.write(line_vertices)
 
     # Render line
-    line_vao.render(moderngl.LINES)
+    line_vao.render(moderngl.LINES, vertices=2)
 
     # Switch to back buffer
     pygame.display.flip()
