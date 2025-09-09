@@ -24,6 +24,9 @@ screen_height = 500
 display = pygame.display.set_mode((screen_width, screen_height),
                                   pygame.DOUBLEBUF | pygame.OPENGL)
 
+# Init clock
+clock = pygame.time.Clock()
+
 # Make ModernGL context
 mgl_ctx = moderngl.create_context()
 
@@ -55,11 +58,15 @@ in vec3 position; // Input position
 out vec3 v_color; // Output color to fragment shader
 
 uniform float scale;
+uniform float angle;
 uniform float dx;
 uniform float dy;
 
 void main() {
-    vec3 updatedPosition = (position * scale) + vec3(dx, dy, 0);
+    float dxAngled = dx * cos(angle);
+    float dyAngled = dy * sin(angle);
+
+    vec3 updatedPosition = (position * scale) + vec3(dxAngled, dyAngled, 0);
 
     // Apply vertex position; in this case we leave as it was on input
     gl_Position = vec4(updatedPosition, 1.0);
@@ -108,6 +115,10 @@ clear_color_g_norm = 115/255
 clear_color_b_norm = 24/255
 clear_color_a_norm = 1
 
+fps = 60
+angle = 0
+angle_increment_per_second = 6
+
 running = True
 while running:
     for event in pygame.event.get():
@@ -119,10 +130,19 @@ while running:
                   clear_color_b_norm, clear_color_a_norm))
 
     # Draw without displacement
-    program["dx"].value = 0.5
+    program["dx"].value = 0
+    program["dy"].value = 0
+
     vao.render(moderngl.TRIANGLES)
 
-    program["dy"].value = 0.5 
+    # Draw with displacement and angling
+    dt = clock.tick(fps) / 1000
+    angle += angle_increment_per_second * dt
+    program["angle"].value = angle
+
+    program["dx"].value = 0.5
+    program["dy"].value = 0.5
+
     vao.render(moderngl.TRIANGLES)
 
     # Switch to back buffer
