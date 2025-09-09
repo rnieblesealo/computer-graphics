@@ -1,5 +1,5 @@
 import random
-import pygame
+ mport pygame
 
 pygame.init()
 pygame.display.set_caption(title="Assignment 1: Rafael Niebles")
