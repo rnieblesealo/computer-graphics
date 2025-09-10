@@ -136,21 +136,19 @@ while running:
             curr_width = event.w
             curr_height = event.h
 
+    # Calculate corrective scaling factor; new / old
+    x_correction_factor = screen_width / curr_width
+    y_correction_factor = screen_height / curr_height
+
     # Clear display
     mgl_ctx.clear(color=(15 / 255, 15 / 255, 15 / 255, 0))
 
-    # Calculate new aspect ratio
-    current_aspect_ratio = curr_width / curr_height
-
-    # Calculate scaling factor; new / old
-    x_scaling_factor = screen_width / curr_width
-    y_scaling_factor = screen_height / curr_height
-
-    # print(f"SCF: x {x_scaling_factor} y {y_scaling_factor}")
-
     # Pass it to the program(s)
-    diamond_program["xCorrectionFactor"].value = x_scaling_factor
-    diamond_program["yCorrectionFactor"].value = y_scaling_factor
+    diamond_program["xCorrectionFactor"].value = x_correction_factor
+    diamond_program["yCorrectionFactor"].value = y_correction_factor
+
+    line_program["xCorrectionFactor"].value = x_correction_factor
+    line_program["yCorrectionFactor"].value = y_correction_factor
 
     # Draw diamond without displacement
     diamond_program["dx"].value = 0
