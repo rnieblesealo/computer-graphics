@@ -1,5 +1,7 @@
+#!/home/rniebles/Developer/GRAPHICS/.cgenv/bin/python3
+
 import random
- mport pygame
+import pygame
 
 pygame.init()
 pygame.display.set_caption(title="Assignment 1: Rafael Niebles")

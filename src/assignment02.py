@@ -1,3 +1,5 @@
+#!/home/rniebles/Developer/GRAPHICS/.cgenv/bin/python3
+
 import pygame
 import moderngl
 import numpy
