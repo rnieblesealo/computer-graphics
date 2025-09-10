@@ -9,16 +9,31 @@ uniform float dx;
 uniform float dy;
 uniform float xCorrectionFactor;
 uniform float yCorrectionFactor;
+uniform bool rotateClockwise;
 
 void main() {
+    // Calculate angle in radians
     float angleInRadians = radians(angleOffset + angle);
 
-    // Apply desired rotation to offset
+    // Compute rotation matrices
+    float cosA = cos(angleInRadians); // NOTE: How offset is not applied!
+    float sinA = sin(angleInRadians);
+
+    mat3 clockwiseRotationMatrix = mat3(
+            -cosA, -sinA, 0,
+            sinA, -cosA, 0,
+            0, 0, 1
+        );
+
+    // Apply orbit rotation
     float dxAngled = dx * cos(angleInRadians);
     float dyAngled = dy * sin(angleInRadians);
 
-    // Apply shape scale
-    vec3 updatedPosition = (position * scale) + vec3(dxAngled, dyAngled, 0);
+    // Apply rotation about self
+    vec3 updatedPosition = clockwiseRotationMatrix * position;
+
+    // Apply scale
+    updatedPosition = (updatedPosition * scale) + vec3(dxAngled, dyAngled, 0);
 
     // Apply aspect correction
     updatedPosition = vec3(

@@ -130,7 +130,7 @@ while running:
         # Quit mechanism
         if event.type == pygame.QUIT:
             running = False
-        # HACK: display.get_size() doesn't report back correct screen size on resize
+        # HACK: display.get_size() doesn't report back correct screen size
         # This does though!
         elif event.type == pygame.VIDEORESIZE:
             curr_width = event.w
@@ -139,6 +139,10 @@ while running:
     # Calculate corrective scaling factor; new / old
     x_correction_factor = screen_width / curr_width
     y_correction_factor = screen_height / curr_height
+
+    # Calculate angle
+    dt = clock.tick(fps) / 1000
+    angle -= angle_increment_per_second * dt  # Subtraction = clockwise rotation
 
     # Clear display
     mgl_ctx.clear(color=(15 / 255, 15 / 255, 15 / 255, 0))
@@ -150,17 +154,16 @@ while running:
     line_program["xCorrectionFactor"].value = x_correction_factor
     line_program["yCorrectionFactor"].value = y_correction_factor
 
-    # Draw diamond without displacement
+    # Apply same angle to both diamonds
+    diamond_program["angle"].value = angle
+
+    # Diamond at center
     diamond_program["dx"].value = 0
     diamond_program["dy"].value = 0
 
     diamond_vao.render(moderngl.TRIANGLES)
 
-    # Draw diamond with displacement and angling
-    dt = clock.tick(fps) / 1000
-    angle -= angle_increment_per_second * dt  # Subtraction = clockwise rotation
-    diamond_program["angle"].value = angle
-
+    # Diamond that orbits
     diamond_program["dx"].value = displacement
     diamond_program["dy"].value = displacement
 

@@ -12,5 +12,5 @@ void main() {
             position.y * yCorrectionFactor,
             0);
 
-    gl_Position = vec4(updatedPosition, 1.0);
+    gl_Position = vec4(updatedPosition, 1);
 }
