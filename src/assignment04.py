@@ -27,7 +27,12 @@ pygame.display.gl_set_attribute(
 screen_width = 500
 screen_height = 500
 display = pygame.display.set_mode((screen_width, screen_height),
-                                  pygame.DOUBLEBUF | pygame.OPENGL)
+                                  pygame.DOUBLEBUF |
+                                  pygame.OPENGL |
+                                  pygame.RESIZABLE)  # Make resizable
+
+# Get aspect ratio
+initial_aspect_ratio = screen_width / screen_height
 
 # === ModernGL Setup ==========================================================
 
@@ -80,6 +85,10 @@ diamond_vao = mgl_ctx.vertex_array(
 scale_value = 0.1
 diamond_program["scale"].value = scale_value
 
+# Give initial angular offset to displaced diamond
+displaced_diamond_angle_offset = 90  # Start at 12 o'clock
+diamond_program["angleOffset"].value = displaced_diamond_angle_offset
+
 # Initialize positioning-related uniform variables
 angle = 0
 angle_increment_per_second = 6
@@ -90,7 +99,7 @@ angle_increment_per_second = 6
 
 line_vertices = numpy.array([
     0, 0, 0,  # Start
-    0, 0.5, 0,  # Finish
+    0, 0, 0,  # Finish
 ], dtype="f4")
 
 line_vbo = mgl_ctx.buffer(line_vertices.tobytes())
@@ -115,15 +124,32 @@ fps = 60
 # Displacement of line and diamond
 displacement = 0.5
 
+curr_width = screen_width
+curr_height = screen_height
+
 running = True
 while running:
-    # Quit mechanism
     for event in pygame.event.get():
+        # Quit mechanism
         if event.type == pygame.QUIT:
             running = False
+        # HACK: display.get_size() doesn't report back correct screen size on resize
+        # This does though!
+        elif event.type == pygame.VIDEORESIZE:
+            curr_width = event.w
+            curr_width = event.h
 
     # Clear display
     mgl_ctx.clear(color=(15 / 255, 15 / 255, 15 / 255, 0))
+
+    # Calculate new aspect ratio
+    current_aspect_ratio = curr_width / curr_height
+
+    # Calculate scaling factor based on old aspect ratio (old / new)
+    scaling_factor = initial_aspect_ratio / current_aspect_ratio
+
+    # Pass it to the program(s)
+    diamond_program["correctionFactor"].value = scaling_factor
 
     # Draw diamond without displacement
     diamond_program["dx"].value = 0
@@ -133,7 +159,7 @@ while running:
 
     # Draw diamond with displacement and angling
     dt = clock.tick(fps) / 1000
-    angle += angle_increment_per_second * dt
+    angle -= angle_increment_per_second * dt  # Subtraction = clockwise rotation
     diamond_program["angle"].value = angle
 
     diamond_program["dx"].value = displacement
@@ -142,8 +168,10 @@ while running:
     diamond_vao.render(moderngl.TRIANGLES)
 
     # Adjust position of end vertex (placed at center of orbiting rect)
-    line_vertices[3] = displacement * math.cos(math.radians(angle))
-    line_vertices[4] = displacement * math.sin(math.radians(angle))
+    line_vertices[3] = displacement * \
+        math.cos(math.radians(displaced_diamond_angle_offset + angle))
+    line_vertices[4] = displacement * \
+        math.sin(math.radians(displaced_diamond_angle_offset + angle))
 
     line_vbo.write(line_vertices)
 
