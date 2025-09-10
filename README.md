@@ -17,6 +17,31 @@ Materials authored by me throughout taking CAP4720 Computer Graphics.
 - `gl_Position` is a `vec4` because OGL uses homogeneous coordinate system
 > Essentially the 4th `w` coord allows messing around with position further
 
+# Checklists
+
+### Assignment 4
+
+- **Change Shape Starting Position**
+  - [x] Adjust the shape and line to start at the vertical location (12 O' clock position).
+  - [x] Implement clockwise rotation to cover 360 degrees in one minute.
+
+- **Enable Window Resizing**
+  - [x] Make the display window resizable.
+  - [x] Implement aspect ratio correction to prevent shape distortion during resizing.
+
+- **Create and Apply Transformation Matrix**
+  - [1/2] Create a 2x2 transformation matrix for rotation and aspect ratio handling.
+  - [ ] Pass the transformation matrix as a uniform variable before the render call.
+  - [ ] In the shader, set the uniform matrix value before the render call.
+  - [ ] Apply the transformation matrix to the position attribute in the shader.
+
+- **Ensure Correct Shape Rotation**
+  - [x] Verify that the shape geometry rotates around its center and along the perimeter of the circular path.
+
+> Generated with duck.ai
+
+# Guides
+
 ### How to Fix libGL Missing
 
 ModernGL looks for `libGL.so` and `libEGL.so` by these literals; in the system they may have a version extension, in PopOS `libGL.so.1` for example.

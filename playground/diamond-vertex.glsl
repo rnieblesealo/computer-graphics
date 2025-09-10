@@ -15,8 +15,7 @@ void main() {
     mat3 rotation = mat3(
             cosA, -sinA, 0,
             sinA, cosA, 0,
-            0, 0, 1
-        );
+            0, 0, 1);
 
     vec3 finalPosition = position * rotation;
 

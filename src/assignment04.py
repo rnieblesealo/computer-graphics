@@ -145,7 +145,7 @@ while running:
     angle -= angle_increment_per_second * dt  # Subtraction = clockwise rotation
 
     # Clear display
-    mgl_ctx.clear(color=(15 / 255, 15 / 255, 15 / 255, 0))
+    mgl_ctx.clear(color=(124 / 255, 135 / 255, 3 / 255, 0))
 
     # Pass it to the program(s)
     diamond_program["xCorrectionFactor"].value = x_correction_factor
