@@ -1,5 +1,22 @@
 Materials authored by me throughout taking CAP4720 Computer Graphics.
 
+# Notes
+
+- **OpenGL Context:** Holds state related to rendering; **thread-specific**
+- **Vertex Shader:** Operates and transforms vertex data
+- **Fragment Shader:** Handles how vertices will be presented to screen
+- **VBO:** Stores vertex data
+- **VAO:** Encapsulates state surrounding vertex data (Is initialized with shader program + VBO)
+- **Shader Program/`ctx.program()`:** Compiles shaders into a program
+- **What happens when issuing a `vao.render()` call:**
+1. VAO is bound to context
+> i.e. Set as active
+2. Its shader program is activated
+3. GPU does render processing and display buffer writing 
+4. VAO state cleared but remains active until is changed
+- `gl_Position` is a `vec4` because OGL uses homogeneous coordinate system
+> Essentially the 4th `w` coord allows messing around with position further
+
 ### How to Fix libGL Missing
 
 ModernGL looks for `libGL.so` and `libEGL.so` by these literals; in the system they may have a version extension, inPopOS `libGL.so.1` for example.
