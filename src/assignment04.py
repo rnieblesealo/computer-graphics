@@ -31,9 +31,6 @@ display = pygame.display.set_mode((screen_width, screen_height),
                                   pygame.OPENGL |
                                   pygame.RESIZABLE)  # Make resizable
 
-# Get aspect ratio
-initial_aspect_ratio = screen_width / screen_height
-
 # === ModernGL Setup ==========================================================
 
 mgl_ctx = moderngl.create_context()
@@ -137,7 +134,7 @@ while running:
         # This does though!
         elif event.type == pygame.VIDEORESIZE:
             curr_width = event.w
-            curr_width = event.h
+            curr_height = event.h
 
     # Clear display
     mgl_ctx.clear(color=(15 / 255, 15 / 255, 15 / 255, 0))
@@ -145,11 +142,15 @@ while running:
     # Calculate new aspect ratio
     current_aspect_ratio = curr_width / curr_height
 
-    # Calculate scaling factor based on old aspect ratio (old / new)
-    scaling_factor = initial_aspect_ratio / current_aspect_ratio
+    # Calculate scaling factor; new / old
+    x_scaling_factor = screen_width / curr_width
+    y_scaling_factor = screen_height / curr_height
+
+    # print(f"SCF: x {x_scaling_factor} y {y_scaling_factor}")
 
     # Pass it to the program(s)
-    diamond_program["correctionFactor"].value = scaling_factor
+    diamond_program["xCorrectionFactor"].value = x_scaling_factor
+    diamond_program["yCorrectionFactor"].value = y_scaling_factor
 
     # Draw diamond without displacement
     diamond_program["dx"].value = 0
