@@ -19,7 +19,7 @@ Materials authored by me throughout taking CAP4720 Computer Graphics.
 
 ### How to Fix libGL Missing
 
-ModernGL looks for `libGL.so` and `libEGL.so` by these literals; in the system they may have a version extension, inPopOS `libGL.so.1` for example.
+ModernGL looks for `libGL.so` and `libEGL.so` by these literals; in the system they may have a version extension, in PopOS `libGL.so.1` for example.
 
 To fix, add symlinks to the versioned files with the names ModernGL expects.
 
