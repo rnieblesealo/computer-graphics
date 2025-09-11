@@ -48,7 +48,7 @@ with open("glsl/assignment04-line-vertex.glsl", "r") as shaderfile:
 with open("glsl/assignment04-line-fragment.glsl", "r") as shaderfile:
     line_fragment_shader_code = shaderfile.read()
 
-# === Diamond =================================================================
+# === Diamond Setup ===========================================================
 
 # Load up verts
 diamond_vertices = numpy.array([
@@ -75,7 +75,7 @@ diamond_vao = mgl_ctx.vertex_array(
     [(diamond_vbo, "3f", "position")]
 )
 
-# === Line ====================================================================
+# === Line Setup ==============================================================
 
 # Pretty much the same stuff as the diamond but for the line
 
@@ -108,7 +108,7 @@ angle = 0
 curr_width = screen_width
 curr_height = screen_height
 
-# Initialize unchanging uniform variables
+# Initialize constant uniform variables
 diamond_program["angleOffset"].value = ANGLE_START_OFFSET
 diamond_program["scale"].value = DIAMOND_SCALE
 
@@ -122,6 +122,7 @@ line_program["displacement"].value = (
 
 running = True
 while running:
+    # ==== Update ===================================
     for event in pygame.event.get():
         # Quit mechanism
         if event.type == pygame.QUIT:
@@ -140,10 +141,7 @@ while running:
     dt = clock.tick(FPS) / 1000
     angle -= ANGLE_INCREMENT_PER_SECOND * dt  # Subtraction = clockwise
 
-    # Clear display
-    mgl_ctx.clear(color=(124 / 255, 135 / 255, 3 / 255, 0))
-
-    # Pass correction values
+    # Pass correction values and angle
     diamond_program["correction"].value = (
         x_correction_factor, y_correction_factor, 0
     )
@@ -151,9 +149,13 @@ while running:
         x_correction_factor, y_correction_factor, 0
     )
 
-    # Apply same angle to both diamonds and the line
     line_program["angle"].value = angle
     diamond_program["angle"].value = angle
+
+    # ==== Render ===================================
+
+    # Clear display
+    mgl_ctx.clear(color=(124 / 255, 135 / 255, 3 / 255, 0))
 
     # Diamond at center
     diamond_program["displacement"].value = (0, 0, 0)
@@ -164,8 +166,11 @@ while running:
         ORBIT_DISTANCE, ORBIT_DISTANCE, 0)
     diamond_vao.render(moderngl.TRIANGLES)
 
-    # Render line
+    # Line
     line_vao.render(moderngl.LINES, vertices=2)
 
     # Switch to back buffer
     pygame.display.flip()
+
+    # ===============================================
+pygame.quit()
