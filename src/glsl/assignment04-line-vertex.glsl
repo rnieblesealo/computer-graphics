@@ -2,12 +2,12 @@
 
 layout(location = 0) in vec3 position;
 
-uniform float xCorrectionFactor;
-uniform float yCorrectionFactor;
-uniform float dx;
-uniform float dy;
 uniform float angle;
 uniform float angleOffset;
+uniform float dx;
+uniform float dy;
+uniform float xCorrectionFactor;
+uniform float yCorrectionFactor;
 
 void main() {
     float angleInRadians = radians(angleOffset + angle);

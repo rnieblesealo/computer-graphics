@@ -2,14 +2,14 @@
 
 in vec3 position; // Input position
 
-uniform float scale;
+uniform bool rotateClockwise;
 uniform float angle;
 uniform float angleOffset; // Start offset applied to angle
 uniform float dx;
 uniform float dy;
+uniform float scale;
 uniform float xCorrectionFactor;
 uniform float yCorrectionFactor;
-uniform bool rotateClockwise;
 
 void main() {
     float angleInRadians = radians(angleOffset + angle);
