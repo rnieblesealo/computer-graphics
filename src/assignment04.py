@@ -1,7 +1,6 @@
 import pygame
 import moderngl
 import numpy
-import math
 
 # Start pygame
 pygame.init()
@@ -76,25 +75,13 @@ diamond_vao = mgl_ctx.vertex_array(
     [(diamond_vbo, "3f", "position")]
 )
 
-# Scale the diamond
-scale_value = 0.1
-diamond_program["scale"].value = scale_value
-
-# Give initial angular offset to displaced diamond
-displaced_diamond_angle_offset = 90  # Start at 12 o'clock
-diamond_program["angleOffset"].value = displaced_diamond_angle_offset
-
-# Initialize positioning-related uniform variables
-angle = 0
-angle_increment_per_second = 6
-
 # === Line ====================================================================
 
 # Pretty much the same stuff as the diamond but for the line
 
 line_vertices = numpy.array([
     0, 0, 0,  # Start
-    0, 0, 0,  # Finish
+    1, 1, 0,  # Finish
 ], dtype="f4")
 
 line_vbo = mgl_ctx.buffer(line_vertices.tobytes())
@@ -109,18 +96,29 @@ line_vao = mgl_ctx.vertex_array(
     [(line_vbo, "3f", "position")]
 )
 
+# === Main Setup ==============================================================
+
+ANGLE_INCREMENT_PER_SECOND = 6
+ANGLE_START_OFFSET = 90  # Start at 12 o'clock
+DIAMOND_SCALE = 0.1
+FPS = 60
+ORBIT_DISTANCE = 0.5
+
+angle = 0
+curr_width = screen_width
+curr_height = screen_height
+
+# Initialize unchanging uniform variables
+diamond_program["angleOffset"].value = ANGLE_START_OFFSET
+diamond_program["scale"].value = DIAMOND_SCALE
+
+line_program["angleOffset"].value = ANGLE_START_OFFSET
+line_program["dx"].value = ORBIT_DISTANCE
+line_program["dy"].value = ORBIT_DISTANCE
+
 # === Main Loop ===============================================================
 
 # WARNING: Pygame calls will be ignored in favor of ModernGL calls
-
-# Framerate
-fps = 60
-
-# Displacement of line and diamond
-displacement = 0.5
-
-curr_width = screen_width
-curr_height = screen_height
 
 running = True
 while running:
@@ -139,8 +137,8 @@ while running:
     y_correction_factor = screen_height / curr_height
 
     # Calculate angle
-    dt = clock.tick(fps) / 1000
-    angle -= angle_increment_per_second * dt  # Subtraction = clockwise rotation
+    dt = clock.tick(FPS) / 1000
+    angle -= ANGLE_INCREMENT_PER_SECOND * dt  # Subtraction = clockwise
 
     # Clear display
     mgl_ctx.clear(color=(124 / 255, 135 / 255, 3 / 255, 0))
@@ -152,7 +150,8 @@ while running:
     line_program["xCorrectionFactor"].value = x_correction_factor
     line_program["yCorrectionFactor"].value = y_correction_factor
 
-    # Apply same angle to both diamonds
+    # Apply same angle to both diamonds and the line
+    line_program["angle"].value = angle
     diamond_program["angle"].value = angle
 
     # Diamond at center
@@ -162,23 +161,13 @@ while running:
     diamond_vao.render(moderngl.TRIANGLES)
 
     # Diamond that orbits
-    diamond_program["dx"].value = displacement
-    diamond_program["dy"].value = displacement
+    diamond_program["dx"].value = ORBIT_DISTANCE
+    diamond_program["dy"].value = ORBIT_DISTANCE
 
     diamond_vao.render(moderngl.TRIANGLES)
-
-    # Adjust position of end vertex (placed at center of orbiting rect)
-    line_vertices[3] = displacement * \
-        math.cos(math.radians(displaced_diamond_angle_offset + angle))
-    line_vertices[4] = displacement * \
-        math.sin(math.radians(displaced_diamond_angle_offset + angle))
-
-    line_vbo.write(line_vertices)
 
     # Render line
     line_vao.render(moderngl.LINES, vertices=2)
 
     # Switch to back buffer
     pygame.display.flip()
-
-pygame.quit()

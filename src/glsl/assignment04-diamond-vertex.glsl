@@ -12,36 +12,30 @@ uniform float yCorrectionFactor;
 uniform bool rotateClockwise;
 
 void main() {
-    // Calculate angle in radians
-    // NOTE: It starts at an offset
     float angleInRadians = radians(angleOffset + angle);
-
-    // Calculate trig ratios
     float cosA = cos(angleInRadians);
     float sinA = sin(angleInRadians);
 
-    // Compute displacement & orbit
-    mat3 orbitRotation = mat3(
+    vec3 displacement = vec3(dx, dy, 0);
+
+    // Rotation about screen center
+    mat3 rotation = mat3(
             cosA, 0, 0,
             0, sinA, 0,
             0, 0, 1);
 
-    vec3 displacementAndOrbit = vec3(dx, dy, 0) * orbitRotation;
-
-    // Compute rotation about self
-    mat3 selfRotation = mat3(
+    // Rotation about diamond center
+    mat3 localRotation = mat3(
             cosA, sinA, 0,
             sinA, -cosA, 0,
             0, 0, 1);
 
-    // Calculate updated position
-    vec3 updatedPosition = (selfRotation * position * scale) + displacementAndOrbit;
+    mat3 aspectCorrection = mat3(
+            xCorrectionFactor, 0, 0,
+            0, yCorrectionFactor, 0,
+            0, 0, 1);
 
-    // Apply aspect correction
-    updatedPosition = vec3(
-            updatedPosition.x * xCorrectionFactor,
-            updatedPosition.y * yCorrectionFactor,
-            0);
+    vec3 updatedPosition = ((localRotation * position * scale) + (displacement * rotation)) * aspectCorrection;
 
     // Apply computed position
     gl_Position = vec4(updatedPosition, 1);
