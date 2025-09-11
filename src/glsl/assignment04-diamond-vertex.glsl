@@ -13,27 +13,29 @@ uniform bool rotateClockwise;
 
 void main() {
     // Calculate angle in radians
+    // NOTE: It starts at an offset
     float angleInRadians = radians(angleOffset + angle);
 
-    // Compute rotation matrices
-    float cosA = cos(angleInRadians); // NOTE: How offset is not applied!
+    // Calculate trig ratios
+    float cosA = cos(angleInRadians);
     float sinA = sin(angleInRadians);
 
-    mat3 clockwiseRotationMatrix = mat3(
-            -cosA, -sinA, 0,
+    // Compute displacement & orbit
+    mat3 orbitRotation = mat3(
+            cosA, 0, 0,
+            0, sinA, 0,
+            0, 0, 1);
+
+    vec3 displacementAndOrbit = vec3(dx, dy, 0) * orbitRotation;
+
+    // Compute rotation about self
+    mat3 selfRotation = mat3(
+            cosA, sinA, 0,
             sinA, -cosA, 0,
-            0, 0, 1
-        );
+            0, 0, 1);
 
-    // Apply orbit rotation
-    float dxAngled = dx * cos(angleInRadians);
-    float dyAngled = dy * sin(angleInRadians);
-
-    // Apply rotation about self
-    vec3 updatedPosition = clockwiseRotationMatrix * position;
-
-    // Apply scale
-    updatedPosition = (updatedPosition * scale) + vec3(dxAngled, dyAngled, 0);
+    // Calculate updated position
+    vec3 updatedPosition = (selfRotation * position * scale) + displacementAndOrbit;
 
     // Apply aspect correction
     updatedPosition = vec3(
@@ -41,6 +43,6 @@ void main() {
             updatedPosition.y * yCorrectionFactor,
             0);
 
-    // Apply vertex position; in this case we leave as it was on input
+    // Apply computed position
     gl_Position = vec4(updatedPosition, 1);
 }
