@@ -2,6 +2,8 @@ import pygame
 import moderngl
 import numpy
 
+# === Pygame Setup ============================================================
+
 # Start pygame
 pygame.init()
 
