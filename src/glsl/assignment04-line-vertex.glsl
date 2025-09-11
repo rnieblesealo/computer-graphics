@@ -4,17 +4,13 @@ layout(location = 0) in vec3 position;
 
 uniform float angle;
 uniform float angleOffset;
-uniform float dx;
-uniform float dy;
-uniform float xCorrectionFactor;
-uniform float yCorrectionFactor;
+uniform vec2 correction;
+uniform vec2 displacement;
 
 void main() {
     float angleInRadians = radians(angleOffset + angle);
     float cosA = cos(angleInRadians);
     float sinA = sin(angleInRadians);
-
-    vec3 displacement = vec3(dx, dy, 0);
 
     // Rotation (creates an orbit with displacement)
     mat3 rotation = mat3(
@@ -22,12 +18,7 @@ void main() {
             0, sinA, 0,
             0, 0, 1);
 
-    mat3 aspectCorrection = mat3(
-            xCorrectionFactor, 0, 0,
-            0, yCorrectionFactor, 0,
-            0, 0, 1);
-
-    vec3 updatedPosition = (displacement * rotation * position) * aspectCorrection;
+    vec3 updatedPosition = (vec3(displacement, 0) * rotation * position) * vec3(correction, 0);
 
     gl_Position = vec4(updatedPosition, 1);
 }
