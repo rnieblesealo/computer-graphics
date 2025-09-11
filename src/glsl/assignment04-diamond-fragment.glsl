@@ -1,8 +1,7 @@
 #version 330 core
 
-out vec4 f_color; // Final pixel color
+out vec4 finalColor;
 
 void main() {
-    // Yellow
-    f_color = vec4(1, 1, 0, 1);
+    finalColor = vec4(1, 1, 0, 1);
 }
