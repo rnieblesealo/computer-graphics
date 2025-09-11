@@ -103,6 +103,7 @@ ANGLE_START_OFFSET = 90  # Start at 12 o'clock
 DIAMOND_SCALE = 0.1
 FPS = 60
 ORBIT_DISTANCE = 0.5
+CLEAR_COLOR = (124 / 255, 135 / 255, 3 / 255, 0)
 
 angle = 0
 curr_width = screen_width
@@ -155,7 +156,7 @@ while running:
     # ==== Render ===================================
 
     # Clear display
-    mgl_ctx.clear(color=(124 / 255, 135 / 255, 3 / 255, 0))
+    mgl_ctx.clear(color=CLEAR_COLOR)
 
     # Diamond at center
     diamond_program["displacement"].value = (0, 0, 0)
