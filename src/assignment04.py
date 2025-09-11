@@ -1,6 +1,7 @@
 import pygame
 import moderngl
 import numpy
+import math
 
 # === Pygame Setup ============================================================
 
@@ -116,8 +117,7 @@ diamond_program["angleOffset"].value = ANGLE_START_OFFSET
 diamond_program["scale"].value = DIAMOND_SCALE
 
 line_program["angleOffset"].value = ANGLE_START_OFFSET
-line_program["displacement"].value = (
-    ORBIT_DISTANCE, ORBIT_DISTANCE, 0)
+line_program["distance"].value = ORBIT_DISTANCE
 
 # === Main Loop ===============================================================
 
@@ -136,24 +136,30 @@ while running:
             curr_width = event.w
             curr_height = event.h
 
-    # Calculate corrective scaling factor; new / old
-    x_correction_factor = screen_width / curr_width
-    y_correction_factor = screen_height / curr_height
+    m_scaling = numpy.array([
+        [1/(screen_width / screen_height), 0],
+        [0, 1]
+    ])
+
+    a = math.radians(angle)
+    m_rotation = numpy.array([
+        [math.cos(a), -math.sin(a)]
+        [math.sin(a), math.cos(a)]
+    ])
+
+    m = m_scaling * m_rotation
 
     # Calculate angle
     dt = clock.tick(FPS) / 1000
     angle -= ANGLE_INCREMENT_PER_SECOND * dt  # Subtraction = clockwise
 
-    # Pass correction values and angle
-    diamond_program["correction"].value = (
-        x_correction_factor, y_correction_factor, 0
-    )
-    line_program["correction"].value = (
-        x_correction_factor, y_correction_factor, 0
-    )
+    # Pass angle and transformation matrix
+    # TODO: Just compute all angle stuff here, avoid it in GLSL code
+    diamond_program["angle"].value = angle
+    diamond_program["m"].value = m
 
     line_program["angle"].value = angle
-    diamond_program["angle"].value = angle
+    line_program["m"].value = m
 
     # ==== Render ===================================
 
@@ -161,12 +167,11 @@ while running:
     mgl_ctx.clear(color=CLEAR_COLOR)
 
     # Diamond at center
-    diamond_program["displacement"].value = (0, 0, 0)
+    diamond_program["distance"].value = 0
     diamond_vao.render(moderngl.TRIANGLES)
 
     # Diamond that orbits
-    diamond_program["displacement"].value = (
-        ORBIT_DISTANCE, ORBIT_DISTANCE, 0)
+    diamond_program["distance"].value = ORBIT_DISTANCE
     diamond_vao.render(moderngl.TRIANGLES)
 
     # Line
