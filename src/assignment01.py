@@ -1,5 +1,3 @@
-#!/home/rniebles/Developer/GRAPHICS/.cgenv/bin/python3
-
 import random
 import pygame
 
