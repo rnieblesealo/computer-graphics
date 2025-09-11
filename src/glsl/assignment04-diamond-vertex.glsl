@@ -5,8 +5,8 @@ in vec3 position; // Input position
 uniform float angle;
 uniform float angleOffset; // Start offset applied to angle
 uniform float scale;
-uniform vec2 correction;
-uniform vec2 displacement;
+uniform vec3 correction;
+uniform vec3 displacement;
 
 void main() {
     float angleInRadians = radians(angleOffset + angle);
@@ -25,7 +25,7 @@ void main() {
             sinA, -cosA, 0,
             0, 0, 1);
 
-    vec3 updatedPosition = ((localRotation * position * scale) + (vec3(displacement, 0) * rotation)) * vec3(correction, 0);
+    vec3 updatedPosition = ((localRotation * position * scale) + (displacement * rotation)) * correction;
 
     // Apply computed position
     gl_Position = vec4(updatedPosition, 1);

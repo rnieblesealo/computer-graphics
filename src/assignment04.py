@@ -114,7 +114,7 @@ diamond_program["scale"].value = DIAMOND_SCALE
 
 line_program["angleOffset"].value = ANGLE_START_OFFSET
 line_program["displacement"].value = (
-    ORBIT_DISTANCE, ORBIT_DISTANCE)
+    ORBIT_DISTANCE, ORBIT_DISTANCE, 0)
 
 # === Main Loop ===============================================================
 
@@ -145,10 +145,10 @@ while running:
 
     # Pass correction values
     diamond_program["correction"].value = (
-        x_correction_factor, y_correction_factor
+        x_correction_factor, y_correction_factor, 0
     )
     line_program["correction"].value = (
-        x_correction_factor, y_correction_factor
+        x_correction_factor, y_correction_factor, 0
     )
 
     # Apply same angle to both diamonds and the line
@@ -156,12 +156,12 @@ while running:
     diamond_program["angle"].value = angle
 
     # Diamond at center
-    diamond_program["displacement"].value = (0, 0)
+    diamond_program["displacement"].value = (0, 0, 0)
     diamond_vao.render(moderngl.TRIANGLES)
 
     # Diamond that orbits
     diamond_program["displacement"].value = (
-        ORBIT_DISTANCE, ORBIT_DISTANCE)
+        ORBIT_DISTANCE, ORBIT_DISTANCE, 0)
     diamond_vao.render(moderngl.TRIANGLES)
 
     # Render line
