@@ -2,7 +2,6 @@
 
 in vec2 position;
 
-// Use these values... (Cont'd here!)
 uniform float scale;
 uniform float distance;
 uniform mat2 m;

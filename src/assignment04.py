@@ -142,8 +142,8 @@ while running:
     # Aspect-corrective
     aspect_ratio = curr_width / curr_height
     m_scaling = numpy.array([
-        [1, 0],
-        [0, aspect_ratio]
+        [1/aspect_ratio, 0],
+        [0, 1]
     ], order="F")
 
     # Rotation
