@@ -55,11 +55,11 @@ with open("glsl/assignment04-line-fragment.glsl", "r") as shaderfile:
 
 # Load up verts
 diamond_vertices = numpy.array([
+    -0.8, 0, 0,
     0, 0.8, 0,
-    -0.8, 0, 0,
     0.8, 0, 0,  # Upper triangle
-    0, -0.8, 0,
     -0.8, 0, 0,
+    0, -0.8, 0,
     0.8, 0, 0,  # Lower triangle
 ], dtype="f4")  # Precision 4 float
 
@@ -113,10 +113,7 @@ curr_width = screen_width
 curr_height = screen_height
 
 # Initialize constant uniform variables
-diamond_program["angleOffset"].value = ANGLE_START_OFFSET
 diamond_program["scale"].value = DIAMOND_SCALE
-
-line_program["angleOffset"].value = ANGLE_START_OFFSET
 line_program["distance"].value = ORBIT_DISTANCE
 
 # === Main Loop ===============================================================
@@ -125,7 +122,9 @@ line_program["distance"].value = ORBIT_DISTANCE
 
 running = True
 while running:
+
     # ==== Update ===================================
+
     for event in pygame.event.get():
         # Quit mechanism
         if event.type == pygame.QUIT:
@@ -136,26 +135,29 @@ while running:
             curr_width = event.w
             curr_height = event.h
 
-    m_scaling = numpy.array([
-        [1/(screen_width / screen_height), 0],
-        [0, 1]
-    ])
+    # Compute angle
+    dt = clock.tick(FPS) / 1000
+    angle += ANGLE_INCREMENT_PER_SECOND * dt
 
+    # Aspect-corrective
+    aspect_ratio = curr_width / curr_height
+    m_scaling = numpy.array([
+        [1, 0],
+        [0, aspect_ratio]
+    ], order="F")
+
+    # Rotation
     a = math.radians(angle)
     m_rotation = numpy.array([
-        [math.cos(a), -math.sin(a)]
+        [math.cos(a), -math.sin(a)],
         [math.sin(a), math.cos(a)]
-    ])
+    ], order="F")  # NOTE: F = Fortran order; column-major memory layout
 
-    m = m_scaling * m_rotation
-
-    # Calculate angle
-    dt = clock.tick(FPS) / 1000
-    angle -= ANGLE_INCREMENT_PER_SECOND * dt  # Subtraction = clockwise
+    # Aspect correction + rotation
+    m = m_scaling @ m_rotation  # NOTE: @ = Matrix mult. operator
+    m = tuple(m.flatten())
 
     # Pass angle and transformation matrix
-    # TODO: Just compute all angle stuff here, avoid it in GLSL code
-    diamond_program["angle"].value = angle
     diamond_program["m"].value = m
 
     line_program["angle"].value = angle
