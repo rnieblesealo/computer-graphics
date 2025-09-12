@@ -140,10 +140,12 @@ while running:
     angle += ANGLE_INCREMENT_PER_SECOND * dt
 
     # Aspect-corrective
-    aspect_ratio = curr_width / curr_height
+    x_corr = curr_width / screen_width
+    y_corr = curr_height / screen_height
+
     m_scaling = numpy.array([
-        [1/aspect_ratio, 0],
-        [0, 1]
+        [x_corr, 0],
+        [0, y_corr]
     ], order="F")
 
     # Rotation
@@ -181,4 +183,5 @@ while running:
     pygame.display.flip()
 
     # ===============================================
+
 pygame.quit()
