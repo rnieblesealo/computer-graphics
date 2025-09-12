@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec2 position; // Input position
+in vec2 position;
 
 // Use these values... (Cont'd here!)
 uniform float scale;
@@ -8,9 +8,9 @@ uniform float distance;
 uniform mat2 m;
 
 void main() {
-    vec2 displacement = vec2(distance, distance);
-    vec2 p = m * position * scale + displacement;
+    vec2 d = distance * vec2(0, 1);
+    vec2 p = position * scale + d;
 
     // Apply correction, etc. here
-    gl_Position = vec4(p, 0, 1);
+    gl_Position = vec4(m * p, 0, 1);
 }

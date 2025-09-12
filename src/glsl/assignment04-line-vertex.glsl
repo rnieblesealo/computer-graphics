@@ -1,26 +1,18 @@
 #version 330 core
 
-layout(location = 0) in vec3 position;
+in vec2 position;
 
-uniform float angle;
-uniform float angleOffset;
 uniform float distance;
-uniform vec3 correction;
 uniform mat2 m;
 
 void main() {
-    mat2 a = m;
-    float angleInRadians = radians(angleOffset + angle);
-    float cosA = cos(angleInRadians);
-    float sinA = sin(angleInRadians);
+    vec2 p = position;
 
-    // Rotation (creates an orbit with displacement)
-    mat3 rotation = mat3(
-            cosA, 0, 0,
-            0, sinA, 0,
-            0, 0, 1);
+    // Operate on the end vertex only
+    if (gl_VertexID > 0) {
+        vec2 d = distance * vec2(0, 1);
+        p = d;
+    }
 
-    vec3 updatedPosition = (distance * rotation * position) * correction;
-
-    gl_Position = vec4(updatedPosition, 1);
+    gl_Position = vec4(m * p, 0, 1);
 }

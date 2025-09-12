@@ -157,10 +157,8 @@ while running:
     m = m_scaling @ m_rotation  # NOTE: @ = Matrix mult. operator
     m = tuple(m.flatten())
 
-    # Pass angle and transformation matrix
+    # Pass transformation matrix
     diamond_program["m"].value = m
-
-    line_program["angle"].value = angle
     line_program["m"].value = m
 
     # ==== Render ===================================
