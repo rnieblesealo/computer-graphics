@@ -1,3 +1,5 @@
+// Assignment 4 Line Fragment Shader
+
 #version 330 core
 
 out vec4 finalColor;
