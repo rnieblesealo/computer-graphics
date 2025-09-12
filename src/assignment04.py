@@ -131,21 +131,20 @@ while running:
             running = False
         # HACK: display.get_size() doesn't report back correct screen size
         # This does though!
-        elif event.type == pygame.VIDEORESIZE:
-            curr_width = event.w
-            curr_height = event.h
+        elif event.type == pygame.WINDOWRESIZED:
+            curr_width = event.x
+            curr_height = event.y
 
     # Compute angle
     dt = clock.tick(FPS) / 1000
     angle += ANGLE_INCREMENT_PER_SECOND * dt
 
     # Aspect-corrective
-    x_corr = curr_width / screen_width
-    y_corr = curr_height / screen_height
+    aspect_ratio = curr_width / curr_height
 
     m_scaling = numpy.array([
-        [x_corr, 0],
-        [0, y_corr]
+        [1/aspect_ratio, 0],
+        [0, 1]
     ], order="F")
 
     # Rotation
@@ -156,7 +155,7 @@ while running:
     ], order="F")  # NOTE: F = Fortran order; column-major memory layout
 
     # Aspect correction + rotation
-    m = m_scaling @ m_rotation  # NOTE: @ = Matrix mult. operator
+    m = m_rotation @ m_scaling  # NOTE: @ = Matrix mult. operator
     m = tuple(m.flatten())
 
     # Pass transformation matrix
