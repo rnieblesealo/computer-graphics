@@ -170,7 +170,7 @@ while running:
 
     # Draw with displacement and angling
     dt = clock.tick(fps) / 1000
-    angle += angle_increment_per_second * dt
+    angle -= angle_increment_per_second * dt
     diamond_program["angle"].value = angle
 
     diamond_program["dx"].value = displacement
