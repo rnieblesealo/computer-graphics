@@ -206,8 +206,8 @@ while running:
     # Clear display
     ctx.clear(color=CLEAR_COLOR)
 
-    # Render clock face bg
-    cf_texture.use(0)  # TODO: What does the 0 stand for?
+    # Render clock face
+    cf_texture.use(0)  # Bind texture to position 0
     cf_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
     # Diamond at center
