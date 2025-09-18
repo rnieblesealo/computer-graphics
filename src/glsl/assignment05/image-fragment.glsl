@@ -1,12 +1,12 @@
-// Clockface image rendering vertex shader
+// Clockface image rendering fragment shader
 
 #version 330
 
-uniform sampler2D texture;
+uniform sampler2D Texture;
 
-in vec2 text_coord;
-out vec4 fragColor;
+in vec2 text;
+out vec4 color;
 
 void main() {
-    fragColor = texture(texture, text_coord);
+    color = texture(Texture, text);
 }

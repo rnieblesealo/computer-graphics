@@ -4,21 +4,6 @@ import math
 import numpy as np
 from PIL import Image
 
-# === Assets Setup ============================================================
-
-clock_face_img = Image.open(
-    # TODO: Why transpose this? A: To make image coord ref match OpenGL
-    # L = grayscale
-    # RGBA = ...What the fuck do u think this mean
-    "./assets/clockface.png").transpose(Image.FLIP_TOP_BOTTOM).convert("RGBA")
-
-clock_face_img_data = np.array(clock_face_img).astype(
-    "f4") / 255.0  # NOTE: Float type; are out of 255 so must normalize
-
-# WARNING: The sizes at this point match; preprocessing OK
-print(f"PIL SIZE: {len(clock_face_img.tobytes())}\nNUMPY SIZE: {
-      clock_face_img_data.size}\nIMG BOUNDS {clock_face_img.size}")
-
 # === Pygame Setup ============================================================
 
 # Start pygame
@@ -77,38 +62,33 @@ with open("glsl/assignment05/image-vertex.glsl", "r") as shaderfile:
 
 # === Image Rendering Setup ===================================================
 
-# Create texture for clock face
-# NOTE: If you don't specify data type here this will break!
-# Make sure to say a dtype that matches that given when loading img.
-clock_face_texture = ctx.texture(
-    # TODO: What is the 3? A: The number of channels; 1 for grayscale
-    clock_face_img.size, 4, clock_face_img_data, dtype="f4")
+# Setup fullscreen quad with 2 tris
 
-
-clock_face_texture.use()  # TODO: What does .use() do?
-
-# Initialize a framebuffer; this stores image data for rendering
-fb = ctx.framebuffer(color_attachments=[clock_face_texture])
-fb.use()
-
-# Setup vertices for a rect that the image will be rendered onto
-# TODO: Why so many dimensions?
-clock_face_img_rect_verts = np.array([
-    -1, -1, 0, 0,
-    1, -1, 1, 0,
-    -1, 1, 0, 1,
-    1, 1, 1, 1
-])
+# Setup verts
+cf_verts = np.array([
+    0, 0,  # Bottom left
+    0, 1,  # Top left
+    1, 0,  # Bottom right
+    1, 1   # Top right
+], dtype=np.float32)
 
 # VBO setup
-cf_vbo = ctx.buffer(clock_face_img_rect_verts)
+cf_vbo = ctx.buffer(cf_verts.tobytes())
 
 # VAO setup
 cf_program = ctx.program(
     vertex_shader=image_vertex_shader_code,
     fragment_shader=image_fragment_shader_code
 )
-cf_vao = ctx.vertex_array(cf_program, cf_vbo, "in_vert", "in_text")
+cf_vao = ctx.vertex_array(cf_program, cf_vbo, "vert")
+
+# Load image
+cf_img = Image.open(
+    "./assets/clockface.png").convert("RGB").transpose(Image.FLIP_TOP_BOTTOM)
+
+# Create texture for it
+cf_img_channels = 3  # RGB
+cf_texture = ctx.texture(cf_img.size, cf_img_channels, cf_img.tobytes())
 
 # === Diamond Setup ===========================================================
 
@@ -164,7 +144,7 @@ ANGLE_INCREMENT_PER_SECOND = 6
 ANGLE_START_OFFSET = 90  # Start at 12 o'clock
 DIAMOND_SCALE = 0.1
 FPS = 60
-ORBIT_DISTANCE = 0.5
+ORBIT_DISTANCE = 0.8
 CLEAR_COLOR = (124 / 255, 135 / 255, 3 / 255, 0)
 
 angle = 0
@@ -225,6 +205,10 @@ while running:
 
     # Clear display
     ctx.clear(color=CLEAR_COLOR)
+
+    # Render clock face bg
+    cf_texture.use(0)  # TODO: What does the 0 stand for?
+    cf_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
     # Diamond at center
     diamond_program["distance"].value = 0
