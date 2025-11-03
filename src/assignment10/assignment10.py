@@ -79,7 +79,8 @@ floor_uvs = numpy.array(
 )
 
 floor_geometry = (
-    numpy.concatenate((floor_positions, floor_uvs), axis=1).flatten().astype("float32")
+    numpy.concatenate((floor_positions, floor_uvs),
+                      axis=1).flatten().astype("float32")
 )
 
 # ---------------------------------------------------------------------
@@ -253,12 +254,15 @@ instance_transforms = []
 
 for gx in range(GRID_N):
     for gz in range(GRID_N):
-        cx = startX + gx * GRID_DELTA + rng.uniform(-JITTER_AMPLITUDE, JITTER_AMPLITUDE)
-        cz = startZ + gz * GRID_DELTA + rng.uniform(-JITTER_AMPLITUDE, JITTER_AMPLITUDE)
+        cx = startX + gx * GRID_DELTA + \
+            rng.uniform(-JITTER_AMPLITUDE, JITTER_AMPLITUDE)
+        cz = startZ + gz * GRID_DELTA + \
+            rng.uniform(-JITTER_AMPLITUDE, JITTER_AMPLITUDE)
 
         # Random rotation around Y axis
         yaw_deg = rng.uniform(-30.0, 30.0)
-        R_yaw = glm.rotate(glm.mat4(1.0), glm.radians(yaw_deg), glm.vec3(0.0, 1.0, 0.0))
+        R_yaw = glm.rotate(glm.mat4(1.0), glm.radians(
+            yaw_deg), glm.vec3(0.0, 1.0, 0.0))
 
         # Translation to jittered cell center
         T_cell = glm.translate(glm.mat4(1.0), glm.vec3(cx, 0.0, cz))
@@ -309,9 +313,11 @@ while running:
     viewMat = glm.lookAt(eye, glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
 
     # Light
-    rotY_light = glm.rotate(glm.mat4(1.0), glm.radians(light_angle), glm.vec3(0, 1, 0))
+    rotY_light = glm.rotate(glm.mat4(1.0), glm.radians(
+        light_angle), glm.vec3(0, 1, 0))
     light_dir = (
-        glm.normalize(glm.vec3(rotY_light * glm.vec4(-0.3, -6.0, -0.8, 0.0))) * 2.0
+        glm.normalize(
+            glm.vec3(rotY_light * glm.vec4(-0.3, -6.0, -0.8, 0.0))) * 2.0
     )
 
     # Clear

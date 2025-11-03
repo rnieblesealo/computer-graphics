@@ -95,8 +95,8 @@ class create3DAssimpObject:
             print("Material Index: ", i)
             self._printMaterialInfo(material)
         self._printNodeInfo(self.scene.root_node, 0)
-       
-    def __init__(self, filename, verbose=False, process_flags=(assimp_py.Process_Triangulate), normalFlag = True, textureFlag = True, tangentFlag = False ):
+        
+    def __init__(self, filename, verbose=False, process_flags=(assimp_py.Process_Triangulate), normalFlag = False, textureFlag = False, tangentFlag = False ):
         #[attr for attr in dir(assimp_py) if not attr.startswith('__') and not callable(getattr(assimp_py, attr))]
         self._min_coords = glm.vec3( np.inf)
         self._max_coords = glm.vec3(-np.inf)
@@ -172,43 +172,31 @@ class create3DAssimpObject:
             self._geomDataList.append(geomData)
             self._faceIndexDataList.append(np.array(mesh.indices).astype("int32"))
         self.bound = self._get_bounding_box()
-        
-    def createRenderableAndSampler(self, program, instanceData=None):
-        self.program = program
-        gl = program.ctx
-        if instanceData and type(instanceData) == list:
-            self._getRenderables(gl, program, instanceData[1])
-        else:
-            self._getRenderables(gl, program)
-        self._getSamplers(gl)
-        
-    def _getRenderables(self, gl, program, instanceData=None):
-        self.renderables = []
+
+    def getRenderables(self, gl, program, format, variables):
+        renderables = []
 
         for i,geomData in enumerate(self._geomDataList):
 
             geomBuffer = gl.buffer(geomData)
             indexBuffer = gl.buffer(self._faceIndexDataList[i])
-            if instanceData:
-                self.renderables.append(gl.vertex_array(program,
-                    [(geomBuffer, "3f 3f 2f", "position", "normal", "uv"), instanceData],
-                    index_buffer=indexBuffer,index_element_size=4
-                ))
-            else:
-                self.renderables.append(gl.vertex_array(program,
-                    [(geomBuffer, "3f 3f 2f", "position", "normal", "uv")],index_buffer=indexBuffer,index_element_size=4
-                ))
-        #return renderables
+
+            renderable = gl.vertex_array(program,
+                [(geomBuffer, format, *variables)],
+                index_buffer=indexBuffer,index_element_size=4
+            )
+            renderables.append(renderable)
+        return renderables
         
 
-    def _getSamplers(self,gl):
+    def getSamplers(self,gl):
         # Create a dummy texture
         noTextureSampler = gl.sampler(
-            texture = gl.texture(size=(1, 1),data=np.array([64, 64, 64, 255], dtype=np.uint8).tobytes(),components=4), 
+            texture = gl.texture(size=(1, 1),data=np.array([255, 0, 0, 255], dtype=np.uint8).tobytes(),components=4), 
             filter=(gl.NEAREST, gl.NEAREST), repeat_x = False, repeat_y = False
         )
-        self.samplers = []
-        
+        samplers = []
+
         uniqueTexNames = []
         uniqueSamplers = []
         def getIndexInUniqueList(name):
@@ -221,7 +209,7 @@ class create3DAssimpObject:
 
         for i, texName in enumerate(self.texNames):
             if texName == None:
-                self.samplers.append(noTextureSampler)
+                samplers.append(noTextureSampler)
             else:
                 index = getIndexInUniqueList(texName)
                 if index == -1:
@@ -232,33 +220,21 @@ class create3DAssimpObject:
                     sampler = gl.sampler(texture=texture, filter=(gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR), repeat_x = True, repeat_y = True)
                     uniqueSamplers.append(sampler)
                     uniqueTexNames.append(texName)
-                    self.samplers.append(sampler)
+                    samplers.append(sampler)
                 else:
-                    self.samplers.append(uniqueSamplers[index])
-        #return samplers
+                    samplers.append(uniqueSamplers[index])
+        return samplers
         
-    def _recursive_render(self, node, M, normalMatrixFlag, nInstances):#, samplers, renderables, program):
+    def _recursive_render(self, node, M, samplers, renderables, program):
         nodeTransform = glm.transpose(glm.mat4(node.transformation))
-        #print("M:",M)
-        #print("nodeTransform:",nodeTransform)
         M1 = M * nodeTransform
-        #print("M1", M1)
         if node.num_meshes > 0:
             for index in node.mesh_indices:
-                material = self.scene.materials[self.scene.meshes[index].material_index]
-                self.samplers[index].use(0)
-                self.program["map"] = 0
-                self.program["model"].write(M1)
-                self.program["k_diffuse"].write(glm.vec4(material["COLOR_DIFFUSE"]).rgb)
-                self.program["shininess"] = material["SHININESS"]
-                if normalMatrixFlag == True:
-                    self.program["normalMatrix"].write(glm.mat3(glm.transpose(glm.inverse(M1))))
-                if nInstances > 1:
-                    self.renderables[index].render(instances = nInstances) 
-                else: 
-                    self.renderables[index].render()
+                samplers[index].use(0)
+                program["map"] = 0
+                program["model"].write(M1)
+                renderables[index].render() 
         for child in node.children:
-            self._recursive_render(child, M1, normalMatrixFlag, nInstances)
-            
-    def render(self, M = glm.mat4(1), normalMatrixFlag=False, nInstances = 1):
-        self._recursive_render(self.scene.root_node, M, normalMatrixFlag, nInstances)#, samplers, renderables, program, normalMatrixFlag)
+            self._recursive_render(child, M1, samplers, renderables, program)
+    def render(self, program, renderables, samplers, M = glm.mat4(1)):
+        self._recursive_render(self.scene.root_node, M, samplers, renderables, program)
