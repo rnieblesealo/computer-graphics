@@ -12,7 +12,7 @@ from pathlib import Path
 pygame.init()
 pygame.display.gl_set_attribute(
     pygame.GL_MULTISAMPLEBUFFERS, 1
-) 
+)
 
 pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 1)
 
@@ -177,21 +177,23 @@ void main(){
 # ======================================================================
 
 TEAPOT_SHADER_PROGRAM = ctx.program(
-  vertex_shader=VERTEX_SHADER,
-  fragment_shader=FRAGMENT_SHADER
+    vertex_shader=VERTEX_SHADER,
+    fragment_shader=FRAGMENT_SHADER
 )
 
 # ======================================================================
-# MODEL/OBJECT SETUP 
+# MODEL/OBJECT SETUP
 # ======================================================================
 
-MODEL_FILEPATH = Path("./the_utah_teapot/scene.gltf") 
-MODEL = create3DAssimpObject(MODEL_FILEPATH.as_posix(), verbose=False, textureFlag=True, normalFlag=True)
+MODEL_FILEPATH = Path("./the_utah_teapot/scene.gltf")
+MODEL = create3DAssimpObject(MODEL_FILEPATH.as_posix(
+), verbose=False, textureFlag=True, normalFlag=True)
 
 FORMAT = "3f 3f 2f"
 FORMAT_VARIABLES = ["in_position", "in_normal", "in_uv"]
 
-MODEL_RENDERABLES = MODEL.getRenderables(ctx, TEAPOT_SHADER_PROGRAM, FORMAT, FORMAT_VARIABLES)
+MODEL_RENDERABLES = MODEL.getRenderables(
+    ctx, TEAPOT_SHADER_PROGRAM, FORMAT, FORMAT_VARIABLES)
 SCENE = MODEL.scene
 
 MODEL_BOUNDS = MODEL.bound
@@ -200,54 +202,60 @@ MODEL_BOUNDS = MODEL.bound
 # RENDERING FUNCTIONS
 # ======================================================================
 
+
 def recursiveRender(node, M):
-  """
-  Renders a scenegraph node and also renders its children recursively
-  """
-  nodeTransform = glm.transpose(glm.mat4(node.transformation))
-  currentTransform = M * nodeTransform
+    """
+    Renders a scenegraph node and also renders its children recursively
+    """
+    nodeTransform = glm.transpose(glm.mat4(node.transformation))
+    currentTransform = M * nodeTransform
 
-  if node.num_meshes > 0:
-    for index in node.mesh_indices:
-      # Use .write(matrix.to_bytes()) for consistency
-      MODEL_RENDERABLES[index]._program["model"].write(currentTransform.to_bytes())
-      MODEL_RENDERABLES[index].render()
+    if node.num_meshes > 0:
+        for index in node.mesh_indices:
+            # Use .write(matrix.to_bytes()) for consistency
+            MODEL_RENDERABLES[index]._program["model"].write(
+                currentTransform.to_bytes())
+            MODEL_RENDERABLES[index].render()
 
-  for node in node.children:
-    recursiveRender(node, currentTransform)
+    for node in node.children:
+        recursiveRender(node, currentTransform)
 
- 
+
 def render():
-  """
-  Does our rendering :)
-  """
-  recursiveRender(SCENE.root_node, M=glm.mat4(1)) 
+    """
+    Does our rendering :)
+    """
+    recursiveRender(SCENE.root_node, M=glm.mat4(1))
 
 # ======================================================================
-# TEXTURE SETUP 
+# TEXTURE SETUP
 # ======================================================================
+
 
 GOLD_IMAGE_FILEPATH = Path("./gold.jpg")
 GOLD_TEXTURE_IMAGE = pygame.image.load(GOLD_IMAGE_FILEPATH.as_posix())
-GOLD_TEXTURE_DATA = pygame.image.tobytes(GOLD_TEXTURE_IMAGE, "RGB", True) 
-GOLD_TEXTURE = ctx.texture(GOLD_TEXTURE_IMAGE.get_size(), data=GOLD_TEXTURE_DATA, components=3) 
-GOLD_TEXTURE_SAMPLER = ctx.sampler(texture=GOLD_TEXTURE)   
+GOLD_TEXTURE_DATA = pygame.image.tobytes(GOLD_TEXTURE_IMAGE, "RGB", True)
+GOLD_TEXTURE = ctx.texture(
+    GOLD_TEXTURE_IMAGE.get_size(), data=GOLD_TEXTURE_DATA, components=3)
+GOLD_TEXTURE_SAMPLER = ctx.sampler(texture=GOLD_TEXTURE)
 
 # Function to load the 6 cubemap faces
+
+
 def load_cubemap(ctx):
     """
     Loads 6 images into a ModernGL cube texture, manually correcting Y-axis orientation.
     """
     # The order is: +X (Right), -X (Left), +Y (Up), -Y (Down), +Z (Front), -Z (Back)
     cubemap_paths = [
-        Path('./Footballfield/posx.jpg'), # 0: Right
-        Path('./Footballfield/negx.jpg'), # 1: Left
-        Path('./Footballfield/posy.jpg'), # 2: Up (Sky)
-        Path('./Footballfield/negy.jpg'), # 3: Down (Ground)
-        Path('./Footballfield/posz.jpg'), # 4: Front
+        Path('./Footballfield/posx.jpg'),  # 0: Right
+        Path('./Footballfield/negx.jpg'),  # 1: Left
+        Path('./Footballfield/posy.jpg'),  # 2: Up (Sky)
+        Path('./Footballfield/negy.jpg'),  # 3: Down (Ground)
+        Path('./Footballfield/posz.jpg'),  # 4: Front
         Path('./Footballfield/negz.jpg')  # 5: Back
     ]
-    
+
     # Check if paths exist
     if not all(p.exists() for p in cubemap_paths):
         print("="*50)
@@ -256,52 +264,54 @@ def load_cubemap(ctx):
         print("posx.jpg, negx.jpg, posy.jpg, negy.jpg, posz.jpg, negz.jpg")
         print("Using a dummy placeholder texture.")
         print("="*50)
-        dummy_data = [(255, 0, 255) * 64 * 64] * 6 
+        dummy_data = [(255, 0, 255) * 64 * 64] * 6
         return ctx.texture_cube((64, 64), 3, data=b''.join(dummy_data))
 
     print("Loading cubemap images...")
     images = [pygame.image.load(path.as_posix()) for path in cubemap_paths]
-    
+
     # --- FIX for upside-down skybox ---
-    # The +Y (index 2) and -Y (index 3) faces often need to be vertically flipped 
+    # The +Y (index 2) and -Y (index 3) faces often need to be vertically flipped
     # when using the standard OpenGL/ModernGL cubemap order and coordinate system.
     # We use pygame.transform.flip(image, x_flip, y_flip)
-    
+
     # MODIFIED: Flip the Up (+Y) and Down (-Y) faces vertically
-    images[2] = pygame.transform.flip(images[2], False, True) # posy
-    images[3] = pygame.transform.flip(images[3], False, True) # negy
+    images[2] = pygame.transform.flip(images[2], False, True)  # posy
+    images[3] = pygame.transform.flip(images[3], False, True)  # negy
 
     # End FIX ---
 
     # Convert all images (now correctly oriented) to a single bytes object
     list_of_bytes = [pygame.image.tobytes(img, "RGB", True) for img in images]
-    image_data_combined = b''.join(list_of_bytes) 
-    
+    image_data_combined = b''.join(list_of_bytes)
+
     size = images[0].get_size()
-    
+
     print(f"Cubemap loaded successfully with size {size}.")
     return ctx.texture_cube(size, 3, data=image_data_combined)
 
+
 # Load the cubemap and create its sampler
 ENVIRONMENT_CUBEMAP = load_cubemap(ctx)
-ENVIRONMENT_SAMPLER = ctx.sampler(texture=ENVIRONMENT_CUBEMAP, repeat_x=False, repeat_y=False)   
+ENVIRONMENT_SAMPLER = ctx.sampler(
+    texture=ENVIRONMENT_CUBEMAP, repeat_x=False, repeat_y=False)
 
 # ======================================================================
-# SKYBOX SETUP 
+# SKYBOX SETUP
 # ======================================================================
 
 SB_POSITIONS = numpy.array([
-  [-1, 1],
-  [1, 1],
-  [1, -1],
-  [-1, -1],
-]).astype(numpy.float32) 
+    [-1, 1],
+    [1, 1],
+    [1, -1],
+    [-1, -1],
+]).astype(numpy.float32)
 
 SB_GEOMETRY = SB_POSITIONS.flatten()
 
 SB_INDICES = numpy.array([
-  0, 1, 2,
-  2, 3, 0
+    0, 1, 2,
+    2, 3, 0
 ]).astype(numpy.int32)
 
 # Skybox vertex shader now un-projects to find world-space direction
@@ -352,8 +362,8 @@ void main(){
 """
 
 SB_PROGRAM = ctx.program(
-  vertex_shader=SB_VERTEX_SHADER,
-  fragment_shader=SB_FRAGMENT_SHADER
+    vertex_shader=SB_VERTEX_SHADER,
+    fragment_shader=SB_FRAGMENT_SHADER
 )
 
 SB_VBO = ctx.buffer(SB_GEOMETRY)
@@ -362,10 +372,10 @@ SB_VBO_VARIABLES = "in_position"
 SB_INDEX_BUFFER = ctx.buffer(SB_INDICES)
 
 SB_VAO = ctx.vertex_array(
-  SB_PROGRAM,
-  [(SB_VBO, SB_VBO_FORMAT, SB_VBO_VARIABLES)],
-  index_buffer=SB_INDEX_BUFFER, 
-  index_element_size=4
+    SB_PROGRAM,
+    [(SB_VBO, SB_VBO_FORMAT, SB_VBO_VARIABLES)],
+    index_buffer=SB_INDEX_BUFFER,
+    index_element_size=4
 )
 
 # ======================================================================
@@ -375,12 +385,14 @@ SB_VAO = ctx.vertex_array(
 UP = glm.vec3(0, 1, 0)
 RIGHT = glm.vec3(1, 0, 0)
 
-displacement_vector = 2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(85), RIGHT)
-light_displacement_vector = 2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(45), RIGHT)
+displacement_vector = 2 * MODEL_BOUNDS.radius * \
+    glm.rotate(UP, glm.radians(85), RIGHT)
+light_displacement_vector = 2 * MODEL_BOUNDS.radius * \
+    glm.rotate(UP, glm.radians(45), RIGHT)
 target_point = glm.vec3(MODEL_BOUNDS.center)
 
 FOV = glm.radians(45)
-ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT 
+ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT
 NEAR_PLANE = MODEL_BOUNDS.radius
 FAR_PLANE = 3 * MODEL_BOUNDS.radius
 
@@ -396,90 +408,93 @@ is_running = True
 clock = pygame.time.Clock()
 
 teapot_rotation = 0
-light_angle = 0 
+light_angle = 0
 
-is_metal = True 
+is_metal = True
 is_paused = True
-use_skybox = True 
+use_skybox = True
 
 # Use Z buffer
-ctx.depth_func = "<=" 
+ctx.depth_func = "<="
 ctx.enable(ctx.DEPTH_TEST)
 
 while is_running:
-  for event in pygame.event.get():
-    if event.type == pygame.QUIT:
-      is_running = False
-    elif event.type == pygame.KEYDOWN:
-      if event.key == pygame.K_m:
-        is_metal = not is_metal
-        print(f"Set to metal: {is_metal}")
-      if event.key == pygame.K_p:
-        is_paused = not is_paused
-    elif event.type == pygame.WINDOWRESIZED:
-      new_width = event.x
-      new_height = event.y
-      ASPECT = new_width / new_height 
-      perspective_matrix = glm.perspective(FOV, ASPECT, NEAR_PLANE, FAR_PLANE) 
-      ctx.viewport = (0, 0, new_width, new_height)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            is_running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_m:
+                is_metal = not is_metal
+                print(f"Set to metal: {is_metal}")
+            if event.key == pygame.K_p:
+                is_paused = not is_paused
+        elif event.type == pygame.WINDOWRESIZED:
+            new_width = event.x
+            new_height = event.y
+            ASPECT = new_width / new_height
+            perspective_matrix = glm.perspective(
+                FOV, ASPECT, NEAR_PLANE, FAR_PLANE)
+            ctx.viewport = (0, 0, new_width, new_height)
 
-  # --- Update -------------------------------------------------------------------------------------
+    # --- Update -------------------------------------------------------------------------------------
 
-  new_displacement_vector = glm.rotate(displacement_vector, glm.radians(teapot_rotation), UP) 
-  eye_position = target_point + new_displacement_vector
-  view_matrix = glm.lookAt(eye_position, target_point, UP)
+    new_displacement_vector = glm.rotate(
+        displacement_vector, glm.radians(teapot_rotation), UP)
+    eye_position = target_point + new_displacement_vector
+    view_matrix = glm.lookAt(eye_position, target_point, UP)
 
-  # --- Render -------------------------------------------------------------------------------------
+    # --- Render -------------------------------------------------------------------------------------
 
-  ctx.clear(color=(0, 0, 0))
+    ctx.clear(color=(0, 0, 0))
 
-  # --- Skybox rendering -------------------------------------------------------------------------
-  if use_skybox:
-    ctx.depth_func = "<=" 
-    curr_program = SB_PROGRAM
-    
-    # Explicitly convert glm.mat4 to bytes using .to_bytes()
-    curr_program["inv_view_matrix"].write(glm.inverse(view_matrix).to_bytes())
-    curr_program["inv_perspective_matrix"].write(glm.inverse(perspective_matrix).to_bytes())
-    
-    curr_program["environment_map"] = 0 
-    ENVIRONMENT_SAMPLER.use(0)
-    
-    SB_VAO.render()
+    # --- Skybox rendering -------------------------------------------------------------------------
+    if use_skybox:
+        ctx.depth_func = "<="
+        curr_program = SB_PROGRAM
 
-  # --- Teapot rendering -------------------------------------------------------------------------
-  
-  ctx.depth_func = "<=" 
-  
-  curr_program = TEAPOT_SHADER_PROGRAM
+        # Explicitly convert glm.mat4 to bytes using .to_bytes()
+        curr_program["inv_view_matrix"].write(
+            glm.inverse(view_matrix).to_bytes())
+        curr_program["inv_perspective_matrix"].write(
+            glm.inverse(perspective_matrix).to_bytes())
 
-  # Use .write(matrix.to_bytes()) for all matrix uniforms
-  curr_program["view"].write(view_matrix.to_bytes())
-  curr_program["perspective"].write(perspective_matrix.to_bytes())
-  
-  # Non-matrix uniforms can still use direct assignment or .write() on vec3/vec4
-  curr_program["eye_position"].write(eye_position)
-  
-  # curr_program["light"].write(new_light_displacement_vector) # Still commented out
+        curr_program["environment_map"] = 0
+        ENVIRONMENT_SAMPLER.use(0)
 
-  curr_program["map"] = 0
-  GOLD_TEXTURE_SAMPLER.use(0)
+        SB_VAO.render()
 
-  curr_program["environment_map"] = 1 
-  ENVIRONMENT_SAMPLER.use(1)
+    # --- Teapot rendering -------------------------------------------------------------------------
 
-  curr_program["metal"] = is_metal
+    ctx.depth_func = "<="
 
-  render()
+    curr_program = TEAPOT_SHADER_PROGRAM
 
+    # Use .write(matrix.to_bytes()) for all matrix uniforms
+    curr_program["view"].write(view_matrix.to_bytes())
+    curr_program["perspective"].write(perspective_matrix.to_bytes())
 
-  pygame.display.flip()
+    # Non-matrix uniforms can still use direct assignment or .write() on vec3/vec4
+    curr_program["eye_position"].write(eye_position)
 
-  clock.tick(TARGET_FPS)
+    # curr_program["light"].write(new_light_displacement_vector) # Still commented out
 
-  if not is_paused:
-    teapot_rotation += 1 
-    if teapot_rotation > 360:
-      teapot_rotation = 0
+    curr_program["map"] = 0
+    GOLD_TEXTURE_SAMPLER.use(0)
+
+    curr_program["environment_map"] = 1
+    ENVIRONMENT_SAMPLER.use(1)
+
+    curr_program["metal"] = is_metal
+
+    render()
+
+    pygame.display.flip()
+
+    clock.tick(TARGET_FPS)
+
+    if not is_paused:
+        teapot_rotation += 1
+        if teapot_rotation > 360:
+            teapot_rotation = 0
 
 pygame.quit()
