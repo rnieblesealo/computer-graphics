@@ -498,7 +498,7 @@ light_angle = 0
 
 is_metal = False 
 is_paused = True
-use_skybox = True
+use_skybox = False 
 
 # Use Z buffer
 ctx.depth_func = "<="  # This has got something to do with Z buffer
@@ -538,7 +538,7 @@ while is_running:
 
     # --- Render -------------------------------------------------------------------------------------
 
-    ctx.clear(color=(0, 0, 0))
+    ctx.clear(color=(0.5, 0.5, 0))
 
     # Skybox rendering
     if use_skybox:
