@@ -489,16 +489,17 @@ perspective_matrix = glm.perspective(FOV, curr_aspect, NEAR_PLANE, FAR_PLANE)
 # ======================================================================
 
 TARGET_FPS = 60
+CAMERA_ROTATION_SPEED = 15
 
 is_running = True
 clock = pygame.time.Clock()
 
-teapot_rotation = 0
+camera_rotation = 0
 light_angle = 0
 
-is_metal = False 
-is_paused = True
-use_skybox = False 
+is_metal = True
+is_paused = False 
+use_skybox = True 
 
 # Use Z buffer
 ctx.depth_func = "<="  # This has got something to do with Z buffer
@@ -510,8 +511,12 @@ while is_running:
         if event.type == pygame.QUIT:
             is_running = False
         elif event.type == pygame.KEYDOWN:
-            # Ugh, implement controls later...
-            pass
+            # Toggling metallic
+            if event.key == pygame.K_m:
+                is_metal = not is_metal
+            # Toggling skybox 
+            elif event.key == pygame.K_s:
+                use_skybox = not use_skybox 
         elif event.type == pygame.WINDOWRESIZED:
             # Recalculate perspective matrix on window resize
             new_width = event.x
@@ -526,7 +531,7 @@ while is_running:
     # --- Update -------------------------------------------------------------------------------------
 
     new_displacement_vector = glm.rotate(
-        displacement_vector, glm.radians(teapot_rotation), UP
+        displacement_vector, glm.radians(camera_rotation), UP
     )
 
     # new_light_displacement_vector = glm.rotate(
@@ -575,12 +580,13 @@ while is_running:
     # Post render stuff
     pygame.display.flip()
 
-    clock.tick(TARGET_FPS)
+    # Tick and compute delta time
+    dt = clock.tick(TARGET_FPS) / 1000
 
     # Rotate the teapot
     if not is_paused:
-        teapot_rotation += 1
-        if teapot_rotation > 360:
-            teapot_rotation = 0
+        camera_rotation += CAMERA_ROTATION_SPEED * dt
+        if camera_rotation > 360:
+            camera_rotation = 0
 
 pygame.quit()
