@@ -170,11 +170,14 @@ vec3 computeColor(){
     vec3 H = normalize(L + V); // Where light and view direction meet 
     */
 
-    // Sample the texture for surface
-    vec3 material_color = texture(map, f_uv).rgb;
+    // Default teapot texture to be white
+    vec3 material_color = vec3(1, 1, 1);
 
     if (metal){
         // Metallic surfaces should reflect
+
+        // Sample the texture for surface
+        material_color = texture(map, f_uv).rgb;
 
         // Calculate light reflection vector
         vec3 reflection_vector = reflect(-V, N);
@@ -493,7 +496,7 @@ clock = pygame.time.Clock()
 teapot_rotation = 0
 light_angle = 0
 
-is_metal = True
+is_metal = False 
 is_paused = True
 use_skybox = True
 
