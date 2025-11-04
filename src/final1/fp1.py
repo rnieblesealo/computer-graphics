@@ -1,4 +1,3 @@
-import re
 import pygame
 import moderngl
 import numpy
@@ -85,7 +84,7 @@ out vec3 f_position;  // Position in world coordinates
 uniform mat4 model;         // Transforms model vertices from model space to world space
 uniform mat4 view;          // Transforms general coords from world space to camera space
 uniform mat4 perspective;   // Converts 3D coordinates to 2D screen coords
-// uniform mat3 normalMatrix;  // Converts normals from model space to camera space; for lighting purposes
+// uniform mat3 normal_matrix;  // Converts normals from model space to camera space; for lighting purposes
 
 // ====================================================================================================
 // MAIN
@@ -104,8 +103,8 @@ void main(){
   f_position = P.xyz;                     // Set position in world coordinates
   gl_Position = perspective * view * P;   // Apply perspective and view to the converted model coords; this is what will be rendered
 
-  mat3 normalMatrix = mat3(transpose(inverse(model)));  // Inverse transpose of model transformation (???)
-  f_normal = normalize(normalMatrix * in_normal);       // Multiply to get normals (???)
+  mat3 normal_matrix = mat3(transpose(inverse(model)));   // Inverse transpose of model transformation (???)
+  f_normal = normalize(normal_matrix * in_normal);         // Multiply to get normals (???)
 }
 """
 
@@ -188,7 +187,7 @@ void main(){
 # SHADER PROGRAM SETUP
 # ======================================================================
 
-shader_program = ctx.program(
+TEAPOT_SHADER_PROGRAM = ctx.program(
   vertex_shader=VERTEX_SHADER,
   fragment_shader=FRAGMENT_SHADER
 )
@@ -203,7 +202,7 @@ MODEL = create3DAssimpObject(MODEL_FILEPATH.as_posix(), verbose=False, textureFl
 FORMAT = "3f 3f 2f"
 FORMAT_VARIABLES = ["in_position", "in_normal", "in_uv"]
 
-MODEL_RENDERABLES = MODEL.getRenderables(ctx, shader_program, FORMAT, FORMAT_VARIABLES)
+MODEL_RENDERABLES = MODEL.getRenderables(ctx, TEAPOT_SHADER_PROGRAM, FORMAT, FORMAT_VARIABLES)
 SCENE = MODEL.scene
 
 MODEL_BOUNDS = MODEL.bound
@@ -331,13 +330,12 @@ SB_VAO = ctx.vertex_array(
 # SKYBOX SETUP 
 # ======================================================================
 
-DISPLACEMENT_VECTOR = 2 * MODEL_BOUNDS.radius * glm.rotate(glm.vec3(0, 1, 0), glm.radians(85), glm.vec3(1, 0, 0))
-
-LIGHT_DISPLACEMENT_VECTOR = 2 * MODEL_BOUNDS.radius * glm.rotate(glm.vec3(0, 1, 0), glm.radians(45), glm.vec3(1, 0, 0))
-
-TARGET_POINT = glm.vec3(MODEL_BOUNDS.center)
-
 UP = glm.vec3(0, 1, 0)
+RIGHT = glm.vec3(1, 0, 0)
+
+displacement_vector = 2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(85), RIGHT)
+light_displacement_vector = 2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(45), RIGHT)
+target_point = glm.vec3(MODEL_BOUNDS.center)
 
 # View volume
 
@@ -345,4 +343,83 @@ FOV = glm.radians(45)
 ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT 
 NEAR_PLANE = MODEL_BOUNDS.radius
 FAR_PLANE = 3 * MODEL_BOUNDS.radius
-PERSPECTIVE = glm.perspective(FOV, ASPECT, NEAR_PLANE, FAR_PLANE)
+
+perspective_matrix = glm.perspective(FOV, ASPECT, NEAR_PLANE, FAR_PLANE)
+
+# ======================================================================
+# MAIN RUN LOOP
+# ======================================================================
+
+TARGET_FPS = 60
+
+is_running = True
+clock = pygame.time.Clock()
+
+teapot_rotation = 0
+light_angle = 0
+
+is_metal = False
+is_paused = True
+use_skybox = False
+
+# Use Z buffer
+ctx.depth_func = "<=" # This has got something to do with Z buffer
+ctx.enable(ctx.DEPTH_TEST)
+
+while is_running:
+  for event in pygame.event.get():
+    # Quit event on hit window X
+    if event.type == pygame.QUIT:
+      is_running = False
+    elif event.type == pygame.KEYDOWN:
+      # Ugh, implement controls later...
+      pass
+    elif event.type == pygame.WINDOWRESIZED:
+      # Recalculate perspective matrix on window resize
+      new_width = event.x
+      new_height = event.y
+
+      perspective_matrix = glm.perspective(FOV, ASPECT, NEAR_PLANE, FAR_PLANE) 
+
+  # --- Update -------------------------------------------------------------------------------------
+
+  new_displacement_vector = glm.rotate(displacement_vector, glm.radians(teapot_rotation), UP) 
+  new_light_displacement_vector = glm.rotate(light_displacement_vector, glm.radians(light_angle), UP)
+  eye_position = target_point + new_displacement_vector
+  view_matrix = glm.lookAt(eye_position, target_point, UP)
+
+  # --- Render -------------------------------------------------------------------------------------
+
+  ctx.clear(color=(0, 0, 0))
+
+  # Teapot rendering
+  curr_program = TEAPOT_SHADER_PROGRAM
+
+  curr_program["view"].write(view_matrix)
+  curr_program["perspective"].write(perspective_matrix)
+  curr_program["eye_position"].write(eye_position)
+  curr_program["light"].write(new_light_displacement_vector)
+
+  curr_program["map"] = 0
+  GOLD_TEXTURE_SAMPLER.use(0)
+
+  curr_program["metal"] = is_metal
+
+  render()
+
+  # Skybox rendering 
+  if use_skybox:
+    curr_program = SB_PROGRAM
+    SB_VAO.render()
+
+  pygame.display.flip()
+
+  clock.tick(TARGET_FPS)
+
+  # Rotate the teapot
+  if not is_paused:
+    teapot_rotation += 1 
+    if teapot_rotation > 360:
+      teapot_rotation = 0
+
+pygame.quit()
