@@ -241,8 +241,47 @@ The scenegraph is a data structure used to organize & manage spatial representat
 """
 
 # ======================================================================
-# RENDERING FUNCTIONS
+# AUXILIARY FUNCTIONS
 # ======================================================================
+
+
+def loadCubemapTextures(ctx: moderngl.Context):
+    """
+    Loads the 6-sided cubemap textures
+    """
+
+    cubemap_paths = [
+        Path("./Footballfield/negx.jpg"),
+        Path("./Footballfield/negy.jpg"),
+        Path("./Footballfield/negz.jpg"),
+        Path("./Footballfield/posx.jpg"),
+        Path("./Footballfield/posy.jpg"),
+        Path("./Footballfield/posz.jpg"),
+    ]
+
+    # Nothing else uses existence checking
+    # For consistency I won't do that here either
+
+    # Load all
+    cubemap_images = [pygame.image.load(path.as_posix()) for path in cubemap_paths]
+
+    # Convert to bytes
+    cubemap_image_data = [
+        pygame.image.tobytes(image, "RGB", True) for image in cubemap_images
+    ]
+
+    # Concatenate individual list entries into big byte block
+    cubemap_image_data = b"".join(cubemap_image_data)
+
+    # NOTE: This assumes all images are same size! They should be; is a cubemap...
+    cubemap_image_size = cubemap_images[0].get_size()
+
+    # Return the OpenGL skybox object
+    RGB_CHANNEL_COUNT = 3
+
+    return ctx.texture_cube(
+        cubemap_image_size, RGB_CHANNEL_COUNT, data=cubemap_image_data
+    )
 
 
 def recursiveRender(node, M):
