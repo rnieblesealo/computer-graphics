@@ -359,6 +359,14 @@ SB_GEOMETRY = SB_POSITIONS.flatten()
 # Get the indices
 SB_INDICES = numpy.array([0, 1, 2, 2, 3, 0]).astype(numpy.int32)
 
+# Load cubemap and its sampler
+SB_CUBEMAP = loadCubemapTextures(ctx)
+SB_CUBEMAP_SAMPLER = ctx.sampler(texture=SB_CUBEMAP)
+
+# TODO: Resume here!
+
+# Set up shaders
+
 SB_VERTEX_SHADER = """
 #version 460 core
 
@@ -403,7 +411,7 @@ SB_VAO = ctx.vertex_array(
 )
 
 # ======================================================================
-# SKYBOX SETUP
+# RENDERING SETUP
 # ======================================================================
 
 UP = glm.vec3(0, 1, 0)
