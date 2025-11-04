@@ -517,6 +517,9 @@ while is_running:
             # Toggling skybox 
             elif event.key == pygame.K_s:
                 use_skybox = not use_skybox 
+            # Toggling pause
+            elif event.key == pygame.K_p:
+                is_paused = not is_paused 
         elif event.type == pygame.WINDOWRESIZED:
             # Recalculate perspective matrix on window resize
             new_width = event.x
