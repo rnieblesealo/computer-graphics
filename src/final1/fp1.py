@@ -91,20 +91,20 @@ uniform mat4 perspective;   // Converts 3D coordinates to 2D screen coords
 // ====================================================================================================
 
 void main(){
-  // = DISCARDS ======
+    // = DISCARDS ======
 
-  f_normal = vec3(0);
+    f_normal = vec3(0);
 
-  // =================
+    // =================
 
-  f_uv = in_uv;
+    f_uv = in_uv;
 
-  vec4 P = model * vec4(in_position, 1);  // Convert model from its space to world space
-  f_position = P.xyz;                     // Set position in world coordinates
-  gl_Position = perspective * view * P;   // Apply perspective and view to the converted model coords; this is what will be rendered
+    vec4 P = model * vec4(in_position, 1);  // Convert model from its space to world space
+    f_position = P.xyz;                     // Set position in world coordinates
+    gl_Position = perspective * view * P;   // Apply perspective and view to the converted model coords; this is what will be rendered
 
-  mat3 normal_matrix = mat3(transpose(inverse(model)));   // Inverse transpose of model transformation (???)
-  f_normal = normalize(normal_matrix * in_normal);         // Multiply to get normals (???)
+    mat3 normal_matrix = mat3(transpose(inverse(model)));   // Inverse transpose of model transformation (???)
+    f_normal = normalize(normal_matrix * in_normal);        // Multiply to get normals (???)
 }
 """
 
@@ -115,9 +115,9 @@ FRAGMENT_SHADER = """
 // INPUT VARIABLES 
 // ====================================================================================================
 
-  in vec3 f_normal;    // Model normals in world coords
-  in vec3 f_position;  // Model position in world coords
-  in vec2 f_uv;        // UVs as they are
+in vec3 f_normal;    // Model normals in world coords
+in vec3 f_position;  // Model position in world coords
+in vec2 f_uv;        // UVs as they are
 
 // ====================================================================================================
 // OUTPUT VARIABLES 
@@ -134,11 +134,21 @@ uniform vec3 light;         // The point at which the light is
 uniform vec3 eye_position;  // The point at which the camera is
 uniform bool metal;         // Is this a metal? 
 
+// Skybox
+
+uniform samplerCube skybox_map; // 6-sided skybox cubemap; UV, but samples a cubemap 
+
 // ====================================================================================================
 // CONSTANTS
 // ====================================================================================================
 
 const float shininess = 5; // Reflection factor
+
+// Skybox
+
+const vec3 sky_color = vec3(0.718, 0.741, 0.753);       // Given by prof.
+const vec3 ground_color = vec3(0.322, 0.400, 0.110);    // Also given by prof.
+const vec3 sky_direction = vec3(0, 1, 0);               // This is the same as up
 
 // ====================================================================================================
 // FUNCTIONS
@@ -146,32 +156,48 @@ const float shininess = 5; // Reflection factor
 
 /* Calculates color at a given vertex */
 vec3 computeColor(){
-  vec3 color = vec3(0);
+    vec3 color = vec3(0);
 
-  // Normalization for all here to keep things consistent!
+    // Normalization for all here to keep things consistent!
 
-  vec3 N = normalize(f_normal);
-  vec3 V = normalize(eye_position - f_position); // Distance between camera and vertex, normalized
-  vec3 L = normalize(light); 
-  vec3 H = normalize(L + V); // Where light and view direction meet 
+    vec3 N = normalize(f_normal);
+    vec3 V = normalize(eye_position - f_position); // Distance between camera and vertex, normalized
 
-  // Sample the texture
-  vec3 material_color = texture(map, f_uv).rgb;
+    // Doesn't seem like we use these again?
+    /*
+    vec3 L = normalize(light); 
+    vec3 H = normalize(L + V); // Where light and view direction meet 
+    */
 
-  // Calculate color with specular highlights factoring in material properties 
-  if (dot(N, L) > 0){
-    // For metallic surface
+    // Sample the texture for surface
+    vec3 material_color = texture(map, f_uv).rgb;
+
     if (metal){
-      color = material_color * pow(dot(N, H), shininess);
-    // For non-metallic surface 
+        // Metallic surfaces should reflect
+
+        // Calculate light reflection vector
+        vec3 reflection_vector = reflect(-V, N);
+
+        // Sample the cubemap using the reflection vector
+        vec3 reflection_color = texture(skybox_map, reflection_vector).rgb;
+
+        // Apply 
+        color = material_color * reflection_color; 
     } else {
-      color = material_color * dot(N, L);
+        // Non-metallic surfaces should use hemispherical lighting
+        // Hemispherical/diffuse lighting = simulates light coming from ALL directions, not just a specific one
+
+        // I HAVE NO IDEA WHAT THIS DOES
+        // I think it's interpolating between both ground and sky colors to blend them though!
+
+        float diffuse_factor = (dot(N, sky_direction) + 1.0) * 0.5;
+        vec3 diffuse_color = mix(ground_color, sky_color, diffuse_factor);
+
+        // Apply
+        color = material_color * diffuse_color;
     }
-  }
 
-  // The dot product check ensures only surfaces facing the light source are lit
-
-  return color;
+    return color;
 }
 
 // ====================================================================================================
@@ -188,21 +214,24 @@ void main(){
 # ======================================================================
 
 TEAPOT_SHADER_PROGRAM = ctx.program(
-  vertex_shader=VERTEX_SHADER,
-  fragment_shader=FRAGMENT_SHADER
+    vertex_shader=VERTEX_SHADER, fragment_shader=FRAGMENT_SHADER
 )
 
 # ======================================================================
-# MODEL/OBJECT SETUP 
+# MODEL/OBJECT SETUP
 # ======================================================================
 
-MODEL_FILEPATH = Path("./the_utah_teapot/scene.gltf") 
-MODEL = create3DAssimpObject(MODEL_FILEPATH.as_posix(), verbose=False, textureFlag=True, normalFlag=True)
+MODEL_FILEPATH = Path("./the_utah_teapot/scene.gltf")
+MODEL = create3DAssimpObject(
+    MODEL_FILEPATH.as_posix(), verbose=False, textureFlag=True, normalFlag=True
+)
 
 FORMAT = "3f 3f 2f"
 FORMAT_VARIABLES = ["in_position", "in_normal", "in_uv"]
 
-MODEL_RENDERABLES = MODEL.getRenderables(ctx, TEAPOT_SHADER_PROGRAM, FORMAT, FORMAT_VARIABLES)
+MODEL_RENDERABLES = MODEL.getRenderables(
+    ctx, TEAPOT_SHADER_PROGRAM, FORMAT, FORMAT_VARIABLES
+)
 SCENE = MODEL.scene
 
 MODEL_BOUNDS = MODEL.bound
@@ -215,72 +244,81 @@ The scenegraph is a data structure used to organize & manage spatial representat
 # RENDERING FUNCTIONS
 # ======================================================================
 
+
 def recursiveRender(node, M):
-  """
-  Renders a scenegraph node and also renders its children recursively
+    """
+    Renders a scenegraph node and also renders its children recursively
 
-  A scenegraph node is akin to an unity GameObject; it may have different properties
-  (Transform, color, etc.)
+    A scenegraph node is akin to an unity GameObject; it may have different properties
+    (Transform, color, etc.)
 
-  What a node and a scenegraph even is/behaves like depends on our own implementation
+    What a node and a scenegraph even is/behaves like depends on our own implementation
 
-  node = The scenegraph node
-  M = Accumulates transforms as we recur down the scene graph node's children
-  """
+    node = The scenegraph node
+    M = Accumulates transforms as we recur down the scene graph node's children
+    """
 
-  # nodeTransform represents local transform of the current node relative to its parent
-  # If no parent, is relative to world
-  nodeTransform = glm.transpose(glm.mat4(node.transformation))
-  currentTransform = M * nodeTransform
+    # nodeTransform represents local transform of the current node relative to its parent
+    # If no parent, is relative to world
+    nodeTransform = glm.transpose(glm.mat4(node.transformation))
+    currentTransform = M * nodeTransform
 
-  # Do we have anything to render?
-  if node.num_meshes > 0:
-    # If so, render each mesh
-    for index in node.mesh_indices:
-      MODEL_RENDERABLES[index]._program["model"].write(currentTransform)
-      MODEL_RENDERABLES[index].render()
+    # Do we have anything to render?
+    if node.num_meshes > 0:
+        # If so, render each mesh
+        for index in node.mesh_indices:
+            MODEL_RENDERABLES[index]._program["model"].write(currentTransform)
+            MODEL_RENDERABLES[index].render()
 
-  # Recur
-  for node in node.children:
-    recursiveRender(node, currentTransform)
+    # Recur
+    for node in node.children:
+        recursiveRender(node, currentTransform)
 
- 
+
 def render():
-  """
-  Does our rendering :)
-  """
+    """
+    Does our rendering :)
+    """
 
-  recursiveRender(SCENE.root_node, M=glm.mat4(1)) # Initialize the transformation to an ID matrix
+    # Initialize the transformation to an ID matrix
+    recursiveRender(SCENE.root_node, M=glm.mat4(1))
+
 
 # ======================================================================
-# TEXTURE SETUP 
+# TEXTURE SETUP
 # ======================================================================
+
 
 GOLD_IMAGE_FILEPATH = Path("./gold.jpg")
 GOLD_TEXTURE_IMAGE = pygame.image.load(GOLD_IMAGE_FILEPATH.as_posix())
-GOLD_TEXTURE_DATA = pygame.image.tobytes(GOLD_TEXTURE_IMAGE, "RGB", True) # Convert to bytes as RGB format
-GOLD_TEXTURE = ctx.texture(GOLD_TEXTURE_IMAGE.get_size(), data=GOLD_TEXTURE_DATA, components=3) # Create OpenGL texture object
-GOLD_TEXTURE_SAMPLER = ctx.sampler(texture=GOLD_TEXTURE)   
+GOLD_TEXTURE_DATA = pygame.image.tobytes(
+    GOLD_TEXTURE_IMAGE, "RGB", True
+)  # Convert to bytes as RGB format
+GOLD_TEXTURE = ctx.texture(
+    GOLD_TEXTURE_IMAGE.get_size(), data=GOLD_TEXTURE_DATA, components=3
+)  # Create OpenGL texture object
+GOLD_TEXTURE_SAMPLER = ctx.sampler(texture=GOLD_TEXTURE)
 
 # ======================================================================
-# SKYBOX SETUP 
+# SKYBOX SETUP
 # ======================================================================
 
-SB_POSITIONS = numpy.array([
-  [-1, 1],
-  [1, 1],
-  [1, -1],
-  [-1, -1],
-]).astype(numpy.float32) # Presumably screen positions; defines a quad
+SB_POSITIONS = numpy.array(
+    [
+        [-1, 1],
+        [1, 1],
+        [1, -1],
+        [-1, -1],
+    ]
+).astype(
+    numpy.float32
+)  # Presumably screen positions; defines a quad
 
-# Turn into flat geometry 
+# Turn into flat geometry
 SB_GEOMETRY = SB_POSITIONS.flatten()
 
 # Get the indices
-SB_INDICES = numpy.array([
-  0, 1, 2,
-  2, 3, 0
-]).astype(numpy.int32)
+SB_INDICES = numpy.array([0, 1, 2, 2, 3, 0]).astype(numpy.int32)
 
 SB_VERTEX_SHADER = """
 #version 460 core
@@ -309,8 +347,7 @@ void main(){
 """
 
 SB_PROGRAM = ctx.program(
-  vertex_shader=SB_VERTEX_SHADER,
-  fragment_shader=SB_FRAGMENT_SHADER
+    vertex_shader=SB_VERTEX_SHADER, fragment_shader=SB_FRAGMENT_SHADER
 )
 
 SB_VBO = ctx.buffer(SB_GEOMETRY)
@@ -320,27 +357,29 @@ SB_INDEX_BUFFER = ctx.buffer(SB_INDICES)
 
 # Renderable skybox VAO
 SB_VAO = ctx.vertex_array(
-  SB_PROGRAM,
-  [(SB_VBO, SB_VBO_FORMAT, SB_VBO_VARIABLES)],
-  index_buffer=SB_INDEX_BUFFER, 
-  index_element_size=4
+    SB_PROGRAM,
+    [(SB_VBO, SB_VBO_FORMAT, SB_VBO_VARIABLES)],
+    index_buffer=SB_INDEX_BUFFER,
+    index_element_size=4,
 )
 
 # ======================================================================
-# SKYBOX SETUP 
+# SKYBOX SETUP
 # ======================================================================
 
 UP = glm.vec3(0, 1, 0)
 RIGHT = glm.vec3(1, 0, 0)
 
 displacement_vector = 2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(85), RIGHT)
-light_displacement_vector = 2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(45), RIGHT)
+light_displacement_vector = (
+    2 * MODEL_BOUNDS.radius * glm.rotate(UP, glm.radians(45), RIGHT)
+)
 target_point = glm.vec3(MODEL_BOUNDS.center)
 
 # View volume
 
 FOV = glm.radians(45)
-ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT 
+ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT
 NEAR_PLANE = MODEL_BOUNDS.radius
 FAR_PLANE = 3 * MODEL_BOUNDS.radius
 
@@ -360,66 +399,70 @@ light_angle = 0
 
 is_metal = False
 is_paused = True
-use_skybox = False
+use_skybox = True
 
 # Use Z buffer
-ctx.depth_func = "<=" # This has got something to do with Z buffer
+ctx.depth_func = "<="  # This has got something to do with Z buffer
 ctx.enable(ctx.DEPTH_TEST)
 
 while is_running:
-  for event in pygame.event.get():
-    # Quit event on hit window X
-    if event.type == pygame.QUIT:
-      is_running = False
-    elif event.type == pygame.KEYDOWN:
-      # Ugh, implement controls later...
-      pass
-    elif event.type == pygame.WINDOWRESIZED:
-      # Recalculate perspective matrix on window resize
-      new_width = event.x
-      new_height = event.y
+    for event in pygame.event.get():
+        # Quit event on hit window X
+        if event.type == pygame.QUIT:
+            is_running = False
+        elif event.type == pygame.KEYDOWN:
+            # Ugh, implement controls later...
+            pass
+        elif event.type == pygame.WINDOWRESIZED:
+            # Recalculate perspective matrix on window resize
+            new_width = event.x
+            new_height = event.y
 
-      perspective_matrix = glm.perspective(FOV, ASPECT, NEAR_PLANE, FAR_PLANE) 
+            perspective_matrix = glm.perspective(FOV, ASPECT, NEAR_PLANE, FAR_PLANE)
 
-  # --- Update -------------------------------------------------------------------------------------
+    # --- Update -------------------------------------------------------------------------------------
 
-  new_displacement_vector = glm.rotate(displacement_vector, glm.radians(teapot_rotation), UP) 
-  new_light_displacement_vector = glm.rotate(light_displacement_vector, glm.radians(light_angle), UP)
-  eye_position = target_point + new_displacement_vector
-  view_matrix = glm.lookAt(eye_position, target_point, UP)
+    new_displacement_vector = glm.rotate(
+        displacement_vector, glm.radians(teapot_rotation), UP
+    )
+    new_light_displacement_vector = glm.rotate(
+        light_displacement_vector, glm.radians(light_angle), UP
+    )
+    eye_position = target_point + new_displacement_vector
+    view_matrix = glm.lookAt(eye_position, target_point, UP)
 
-  # --- Render -------------------------------------------------------------------------------------
+    # --- Render -------------------------------------------------------------------------------------
 
-  ctx.clear(color=(0, 0, 0))
+    ctx.clear(color=(0, 0, 0))
 
-  # Teapot rendering
-  curr_program = TEAPOT_SHADER_PROGRAM
+    # Teapot rendering
+    curr_program = TEAPOT_SHADER_PROGRAM
 
-  curr_program["view"].write(view_matrix)
-  curr_program["perspective"].write(perspective_matrix)
-  curr_program["eye_position"].write(eye_position)
-  curr_program["light"].write(new_light_displacement_vector)
+    curr_program["view"].write(view_matrix)
+    curr_program["perspective"].write(perspective_matrix)
+    curr_program["eye_position"].write(eye_position)
+    curr_program["light"].write(new_light_displacement_vector)
 
-  curr_program["map"] = 0
-  GOLD_TEXTURE_SAMPLER.use(0)
+    curr_program["map"] = 0
+    GOLD_TEXTURE_SAMPLER.use(0)
 
-  curr_program["metal"] = is_metal
+    curr_program["metal"] = is_metal
 
-  render()
+    render()
 
-  # Skybox rendering 
-  if use_skybox:
-    curr_program = SB_PROGRAM
-    SB_VAO.render()
+    # Skybox rendering
+    if use_skybox:
+        curr_program = SB_PROGRAM
+        SB_VAO.render()
 
-  pygame.display.flip()
+    pygame.display.flip()
 
-  clock.tick(TARGET_FPS)
+    clock.tick(TARGET_FPS)
 
-  # Rotate the teapot
-  if not is_paused:
-    teapot_rotation += 1 
-    if teapot_rotation > 360:
-      teapot_rotation = 0
+    # Rotate the teapot
+    if not is_paused:
+        teapot_rotation += 1
+        if teapot_rotation > 360:
+            teapot_rotation = 0
 
 pygame.quit()
