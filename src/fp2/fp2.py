@@ -6,6 +6,7 @@ import pygame
 from OpenGL.GL import *
 from loadModelUsingAssimp_V3 import create3DAssimpObject
 from pathlib import Path
+from PIL import Image
 
 # ===============================================================================================================
 # PYGAME SETUP
@@ -215,13 +216,11 @@ def render_model(view, perspective, light, eye):
     Writes uniforms to the model and then renders it.
     """
 
-    program = model_program
-
     # Write uniforms to model program
-    program["view"].write(view)
-    program["perspective"].write(perspective)
-    program["light"].write(light)
-    program["eye_position"].write(eye)
+    model_program["view"].write(view)
+    model_program["perspective"].write(perspective)
+    model_program["light"].write(light)
+    model_program["eye_position"].write(eye)
 
     # Render using loader object function
     model.render()
@@ -340,12 +339,18 @@ floor_program = ctx.program(
     vertex_shader=FLOOR_VERTEX_SHADER, fragment_shader=FLOOR_FRAGMENT_SHADER
 )
 
+
 # Get model bounds, center
 m_min = model_bound.boundingBox[0]  # Lowest x, y, z coords of model box (min corner)
 m_max = glm.vec3(
     model_bound.boundingBox[1].x, m_min.y, model_bound.boundingBox[1].z
 )  # Highest x, y, z (max corner)
 m_ctr = (m_min + m_max) / 2  # Center of model bounds
+
+# --- UNUSED, NOT SURE WHAT THESE ARE FOR... -----------------------------
+plane_point = m_ctr
+plane_normal = glm.vec3(0, 1, 0)  # This is floor plane, so up is its norm
+# ------------------------------------------------------------------------
 
 # Define floor plane dimensions
 floor_quad_side = 3 * model_bound.radius  # Floor size will be 3 times model's radius
@@ -389,5 +394,39 @@ floor_quad_vao = ctx.vertex_array(
     floor_program, [(floor_quad_vbo, floor_quad_vao_format, "position", "uv")]
 )
 
-plane_point = m_ctr
-plane_normal = glm.vec3(0, 1, 0)  # This is floor plane, so up is its norm
+# Make floor texture
+FLOOR_TEXTURE_PATH = Path("./tile-squares-texture.jpg")
+
+floor_texture_img = pygame.image.load(FLOOR_TEXTURE_PATH.as_posix())
+floor_texture_data = pygame.image.tobytes(floor_texture_img, "RGB", True)
+floor_texture = ctx.texture(
+    floor_texture_img.get_size(), data=floor_texture_data, components=3
+)
+
+# Make mipmaps
+floor_texture.build_mipmaps()
+
+# Create sampler
+floor_texture_sampler = ctx.sampler(
+    texture=floor_texture,
+    filter=(ctx.LINEAR_MIPMAP_LINEAR, ctx.LINEAR),
+    repeat_x=True,
+    repeat_y=True,
+)
+
+
+def render_floor(view, perspective, light):
+    """
+    Writes uniforms to floor shader and then renders it.
+    """
+
+    floor_program["view"].write(view)
+    floor_program["perspective"].write(perspective)
+    floor_program["light"].write(light)
+    floor_program["normal"].write(plane_normal)
+
+    floor_texture_sampler.use(0)  # Bind sampler to slot 0
+    floor_program["map"] = 0  # Tell shader this
+
+    # Render floor!
+    floor_quad_vao.render()
