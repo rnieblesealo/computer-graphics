@@ -335,6 +335,59 @@ void main(){
 }
 """
 
+# Compile floor program
 floor_program = ctx.program(
     vertex_shader=FLOOR_VERTEX_SHADER, fragment_shader=FLOOR_FRAGMENT_SHADER
 )
+
+# Get model bounds, center
+m_min = model_bound.boundingBox[0]  # Lowest x, y, z coords of model box (min corner)
+m_max = glm.vec3(
+    model_bound.boundingBox[1].x, m_min.y, model_bound.boundingBox[1].z
+)  # Highest x, y, z (max corner)
+m_ctr = (m_min + m_max) / 2  # Center of model bounds
+
+# Define floor plane dimensions
+floor_quad_side = 3 * model_bound.radius  # Floor size will be 3 times model's radius
+floor_quad_midlength = floor_quad_side / 2  # Floor square edge's midlength
+
+# VBO vertices; they define the 4 corners of the square floor plane
+floor_quad_vertices = numpy.array(
+    [
+        m_ctr.x - floor_quad_midlength,
+        m_ctr.y,
+        m_ctr.z - floor_quad_midlength,
+        0,
+        0,
+        m_ctr.x + floor_quad_midlength,
+        m_ctr.y,
+        m_ctr.z - floor_quad_midlength,
+        1,
+        0,
+        m_ctr.x + floor_quad_midlength,
+        m_ctr.y,
+        m_ctr.z + floor_quad_midlength,
+        1,
+        1,
+        m_ctr.x - floor_quad_midlength,
+        m_ctr.y,
+        m_ctr.z + floor_quad_midlength,
+        0,
+        1,
+    ]
+).astype(numpy.float32)
+
+floor_quad_vbo = ctx.buffer(floor_quad_vertices)
+
+# Make index buffer to define tris
+floor_quad_index = numpy.array([0, 1, 2, 2, 3, 0])
+floor_quad_index_buffer = ctx.buffer(floor_quad_index)
+
+# Create VAO
+floor_quad_vao_format = "3f 2f"
+floor_quad_vao = ctx.vertex_array(
+    floor_program, [(floor_quad_vbo, floor_quad_vao_format, "position", "uv")]
+)
+
+plane_point = m_ctr
+plane_normal = glm.vec3(0, 1, 0)  # This is floor plane, so up is its norm
