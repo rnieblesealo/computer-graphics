@@ -430,3 +430,93 @@ def render_floor(view, perspective, light):
 
     # Render floor!
     floor_quad_vao.render()
+
+
+# ===============================================================================================================
+# CAMERA PARAMETER SETUP
+# ===============================================================================================================
+
+UP = glm.vec3(0, 1, 0)
+
+light_displacement = (
+    4 * model_bound.radius * glm.rotateZ(UP, glm.radians(45))
+)  # Displaces the light by applying a rotation
+
+eye_displacement = (
+    4 * model_bound.radius * glm.rotateX(UP, glm.radians(85))
+)  # Displaces the camera by applying a rotation
+
+eye_target_point = glm.vec3(model_bound.center)  # Where camera will point to
+
+fov = glm.radians(30)  # x degree FOV in radians
+
+near_plane = model_bound.radius
+far_plane = 20 * model_bound.radius
+
+aspect = SCREEN_WIDTH / SCREEN_HEIGHT
+perspective_matrix = glm.perspective(fov, aspect, near_plane, far_plane)
+
+# ===============================================================================================================
+# RENDERING
+# ===============================================================================================================
+
+clock = pygame.time.Clock()
+
+orbit_rotation = 0
+light_angle = 0
+
+is_paused = True
+is_running = True
+use_blend = False
+use_point_light = False
+draw_shadow = False
+
+ctx.enable(ctx.DEPTH_TEST)  # Enable Z-buffer
+
+while is_running:
+    for event in pygame.event.get():
+        # Easier way to match stuff
+        # No fallthrough, break isn't required!
+        match event.type:
+            case pygame.QUIT:
+                is_running = False
+            case pygame.KEYDOWN:
+                pass  # TODO: Add input statements here
+            case pygame.WINDOWRESIZED:
+                # Recompute aspect and perspective based on aspect ratio change
+                new_width = event.x
+                new_height = event.y
+
+                aspect = new_width / new_height
+
+                perspective_matrix = glm.perspective(fov, aspect, near_plane, far_plane)
+
+    # ---------------------------------------------------------------------------------------------------------
+    # UPDATES
+    # ---------------------------------------------------------------------------------------------------------
+
+    # Update displacements based on updated orbit rotation and light angle
+    new_light_displacement = glm.rotate(
+        light_displacement, glm.radians(light_angle), UP
+    )
+
+    new_eye_displacement = glm.rotate(eye_displacement, glm.radians(light_angle), UP)
+
+    # Define light depending on type
+    if use_point_light:
+        light = glm.vec4(eye_target_point + new_light_displacement, 1)
+    else:
+        light = glm.vec4(new_light_displacement, 0)
+
+    # Set camera pos
+    eye_point = eye_target_point + new_eye_displacement
+
+    # Compute view matrix (world -> camera space)
+    view_matrix = glm.lookAt(eye_point, eye_target_point, UP)
+
+    # ---------------------------------------------------------------------------------------------------------
+    # RENDERING
+    # ---------------------------------------------------------------------------------------------------------
+
+
+pygame.quit()
