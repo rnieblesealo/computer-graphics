@@ -489,7 +489,7 @@ perspective_matrix = glm.perspective(FOV, curr_aspect, NEAR_PLANE, FAR_PLANE)
 # ======================================================================
 
 TARGET_FPS = 60
-CAMERA_ROTATION_SPEED = 15
+CAMERA_ROTATION_SPEED = 5000
 
 is_running = True
 clock = pygame.time.Clock()
@@ -498,8 +498,8 @@ camera_rotation = 0
 light_angle = 0
 
 is_metal = True
-is_paused = False 
-use_skybox = True 
+is_paused = False
+use_skybox = True
 
 # Use Z buffer
 ctx.depth_func = "<="  # This has got something to do with Z buffer
@@ -514,12 +514,12 @@ while is_running:
             # Toggling metallic
             if event.key == pygame.K_m:
                 is_metal = not is_metal
-            # Toggling skybox 
+            # Toggling skybox
             elif event.key == pygame.K_s:
-                use_skybox = not use_skybox 
+                use_skybox = not use_skybox
             # Toggling pause
             elif event.key == pygame.K_p:
-                is_paused = not is_paused 
+                is_paused = not is_paused
         elif event.type == pygame.WINDOWRESIZED:
             # Recalculate perspective matrix on window resize
             new_width = event.x
@@ -553,9 +553,10 @@ while is_running:
         curr_program = SB_PROGRAM
 
         curr_program["inv_view_matrix"].write(glm.inverse(view_matrix).to_bytes())
-        curr_program["inv_perspective_matrix"].write(
-            glm.inverse(perspective_matrix).to_bytes()
-        )
+
+        # curr_program["inv_perspective_matrix"].write(
+        #     glm.inverse(perspective_matrix).to_bytes()
+        # )
 
         curr_program["skybox_map"] = 0
         SB_CUBEMAP_SAMPLER.use(0)
