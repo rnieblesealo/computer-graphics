@@ -385,13 +385,16 @@ floor_quad_vertices = numpy.array(
 floor_quad_vbo = ctx.buffer(floor_quad_vertices)
 
 # Make index buffer to define tris
-floor_quad_index = numpy.array([0, 1, 2, 2, 3, 0])
+floor_quad_index = numpy.array([0, 1, 2, 2, 3, 0]).astype(numpy.int32)
 floor_quad_index_buffer = ctx.buffer(floor_quad_index)
 
 # Create VAO
 floor_quad_vao_format = "3f 2f"
 floor_quad_vao = ctx.vertex_array(
-    floor_program, [(floor_quad_vbo, floor_quad_vao_format, "position", "uv")]
+    floor_program,
+    [(floor_quad_vbo, floor_quad_vao_format, "position", "uv")],
+    floor_quad_index_buffer,
+    index_element_size=4,
 )
 
 # Make floor texture
@@ -460,6 +463,8 @@ perspective_matrix = glm.perspective(fov, aspect, near_plane, far_plane)
 # RENDERING
 # ===============================================================================================================
 
+TARGET_FPS = 60
+
 clock = pygame.time.Clock()
 
 orbit_rotation = 0
@@ -514,9 +519,23 @@ while is_running:
     # Compute view matrix (world -> camera space)
     view_matrix = glm.lookAt(eye_point, eye_target_point, UP)
 
+    # Tick
+    dt = clock.tick(TARGET_FPS)
+    if not is_paused:
+        orbit_rotation += 1
+        if orbit_rotation > 360:
+            orbit_rotation = 0
+
     # ---------------------------------------------------------------------------------------------------------
     # RENDERING
     # ---------------------------------------------------------------------------------------------------------
+
+    ctx.clear(color=(0, 0, 0))
+
+    render_model(view_matrix, perspective_matrix, light, eye_point)
+    render_floor(view_matrix, perspective_matrix, light)
+
+    pygame.display.flip()
 
 
 pygame.quit()
