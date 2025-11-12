@@ -6,7 +6,6 @@ import pygame
 from OpenGL.GL import *
 from loadModelUsingAssimp_V3 import create3DAssimpObject
 from pathlib import Path
-from PIL import Image
 
 # ===============================================================================================================
 # PYGAME SETUP
@@ -22,12 +21,13 @@ pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 16)  # 16 samples
 pygame.display.gl_set_attribute(
     pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE
 )
+pygame.display.gl_set_attribute(pygame.GL_STENCIL_SIZE, 8)
 
 pygame.display.set_mode(
     (SCREEN_WIDTH, SCREEN_HEIGHT),
     flags=pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
 )
-pygame.display.set_caption(title="Final Project 02: Rafael Niebles")
+pygame.display.set_caption(title="Project Substitute 2: Rafael Niebles")
 
 # ===============================================================================================================
 # MODERNGL SETUP
@@ -67,27 +67,44 @@ out vec3 f_position;  // position in world coords
 uniform mat4 model; // Transforms model -> world space
 uniform mat4 view; // Transforms world space -> camera space
 uniform mat4 perspective; // Transforms 3D coords -> 2D screen coords, creating depth effect
+uniform vec4 light; // The light vector (xyz) and type (w)
+uniform bool is_shadow_pass;
+uniform vec3 plane_point;
+uniform vec3 plane_normal;
 
 // =========================================================================================
 // MAIN 
 // =========================================================================================
 
 void main(){
-  f_uv = uv;
+    vec4 world_pos_4 = model * vec4(position, 1.0);
+    vec3 world_pos_3 = world_pos_4.xyz;
 
-  // Convert model verts to world space 
-  vec4 final_pos = model * vec4(position, 1);
-  f_position = final_pos.xyz;
+    f_position = world_pos_3;
+    f_uv = uv;
+    mat3 normal_matrix = mat3(transpose(inverse(model)));
+    f_normal = normalize(normal_matrix*normal);
 
-  // Compute normal matrix
-  // This matrix correctly applies any model transformations to its normals
-  mat3 normal_matrix = mat3(transpose(inverse(model)));
+    if (!is_shadow_pass) {
+        gl_Position = perspective*view*world_pos_4;
+    } else {
+        vec3 vector_to_light;
 
-  // Apply the normal matrix to the model to match its world space transform
-  f_normal = normalize(normal_matrix * normal);
+        if (light.w > 0.0) { // Point light
+            vector_to_light = light.xyz - world_pos_3;
+        } else { // Directional light
+            vector_to_light = -light.xyz;
+        }
 
-  // Convert to world space and apply perspective
-  gl_Position = perspective * view * final_pos;
+        float light_plane_dot = dot(vector_to_light, plane_normal);
+        if (abs(light_plane_dot) < 1e-5) {
+            gl_Position = perspective * view * world_pos_4;
+        } else {
+            float t = dot(plane_point - world_pos_3, plane_normal) / light_plane_dot;
+            vec3 shadow_pos = world_pos_3 + t * vector_to_light + 0.005 * plane_normal;
+            gl_Position = perspective * view * vec4(shadow_pos, 1.0);
+        }
+    }
 }
 """
 
@@ -117,6 +134,7 @@ uniform float shininess; // Glossiness
 uniform vec3 eye_position; // Camera pos in world space
 uniform vec3 k_diffuse; // Diffuse reflection factor
 uniform vec4 light; // Light vector (xyz) and type (w)
+uniform bool is_shadow_pass;
 
 // =========================================================================================
 // CONSTANT
@@ -185,11 +203,15 @@ vec3 computeColor(){
 }
 
 // =========================================================================================
-// FUNCTIONS
+// MAIN
 // =========================================================================================
 
 void main(){
-    out_color = vec4(computeColor(), 1);
+    if (is_shadow_pass) {
+        out_color = vec4(0.1, 0.1, 0.1, 0.5); 
+    } else {
+        out_color = vec4(computeColor(), 1.0);
+    }
 }
 
 """
@@ -211,7 +233,7 @@ model.createRenderableAndSampler(model_program)
 model_bound = model.bound
 
 
-def render_model(view, perspective, light, eye):
+def render_model(view, perspective, light, eye, is_shadow=False):
     """
     Writes uniforms to the model and then renders it.
     """
@@ -221,6 +243,12 @@ def render_model(view, perspective, light, eye):
     model_program["perspective"].write(perspective)
     model_program["light"].write(light)
     model_program["eye_position"].write(eye)
+
+    model_program["is_shadow_pass"].value = is_shadow
+    if is_shadow:
+        # Pass plane parameters needed for shadow projection
+        model_program["plane_point"].write(plane_point)
+        model_program["plane_normal"].write(plane_normal)
 
     # Render using loader object function
     model.render()
@@ -347,10 +375,8 @@ m_max = glm.vec3(
 )  # Highest x, y, z (max corner)
 m_ctr = (m_min + m_max) / 2  # Center of model bounds
 
-# --- UNUSED, NOT SURE WHAT THESE ARE FOR... -----------------------------
 plane_point = m_ctr
 plane_normal = glm.vec3(0, 1, 0)  # This is floor plane, so up is its norm
-# ------------------------------------------------------------------------
 
 # Define floor plane dimensions
 floor_quad_side = 3 * model_bound.radius  # Floor size will be 3 times model's radius
@@ -470,29 +496,47 @@ clock = pygame.time.Clock()
 orbit_rotation = 0
 light_angle = 0
 
-is_paused = True
 is_running = True
+is_paused = True
 use_blend = False
-use_stencil = False
 use_point_light = False
 draw_shadow = True
 
 ctx.enable(ctx.DEPTH_TEST)  # Enable Z-buffer
 
+glClearColor(0.0, 0.0, 0.0, 1.0)
+
+model_program["plane_point"].write(plane_point)
+model_program["plane_normal"].write(plane_normal)
+model_program["is_shadow_pass"].value = False
+
 while is_running:
     for event in pygame.event.get():
-        # Easier way to match stuff
-        # No fallthrough, break isn't required!
         match event.type:
             case pygame.QUIT:
                 is_running = False
             case pygame.KEYDOWN:
-                pass  # TODO: Add input statements here
+                if event.key == pygame.K_p:
+                    is_paused = not is_paused
+                elif event.key == pygame.K_s:
+                    draw_shadow = not draw_shadow
+                    print(f"Draw Shadow: {draw_shadow}")
+                elif event.key == pygame.K_b:
+                    use_blend = not use_blend
+                    print(f"Use Blend: {use_blend}")
+                elif event.key == pygame.K_l:
+                    use_point_light = not use_point_light
+                    print(f"Use Point Light: {use_point_light}")
+                elif event.key == pygame.K_LEFT:
+                    light_angle -= 5
+                elif event.key == pygame.K_RIGHT:
+                    light_angle += 5
             case pygame.WINDOWRESIZED:
                 # Recompute aspect and perspective based on aspect ratio change
                 new_width = event.x
                 new_height = event.y
 
+                ctx.viewport = (0, 0, new_width, new_height)  # Set viewport
                 aspect = new_width / new_height
 
                 perspective_matrix = glm.perspective(fov, aspect, near_plane, far_plane)
@@ -506,7 +550,9 @@ while is_running:
         light_displacement, glm.radians(light_angle), UP
     )
 
-    new_eye_displacement = glm.rotate(eye_displacement, glm.radians(light_angle), UP)
+    new_eye_displacement = glm.rotate(
+        eye_displacement, glm.radians(orbit_rotation), UP
+    )  # Use orbit_rotation for camera
 
     # Define light depending on type
     if use_point_light:
@@ -523,7 +569,7 @@ while is_running:
     # Tick
     dt = clock.tick(TARGET_FPS)
     if not is_paused:
-        orbit_rotation += 1
+        orbit_rotation += 1 * (dt / 16.6)  # Frame-rate independent rotation
         if orbit_rotation > 360:
             orbit_rotation = 0
 
@@ -533,10 +579,48 @@ while is_running:
 
     ctx.clear(color=(0, 0, 0))
 
+    if use_blend or use_point_light:
+        glEnable(GL_STENCIL_TEST)
+        glStencilMask(0xFF)
+        glClearStencil(0)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+        glStencilFunc(GL_ALWAYS, 1, 0xFF)
+    else:
+        glDisable(GL_STENCIL_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+    glDisable(GL_BLEND)
+
     render_model(view_matrix, perspective_matrix, light, eye_point)
     render_floor(view_matrix, perspective_matrix, light)
 
-    pygame.display.flip()
+    # Set required OpenGL opts before model rendering with shadow
+    if draw_shadow:
+        if use_blend:
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glEnable(GL_STENCIL_TEST)
+            glStencilFunc(GL_EQUAL, 1, 0xFF)
+            glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO)
+        elif use_point_light:
+            glDisable(GL_BLEND)
+            glEnable(GL_STENCIL_TEST)
+            glStencilFunc(GL_EQUAL, 1, 0xFF)
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+        else:
+            glDisable(GL_BLEND)
+            glDisable(GL_STENCIL_TEST)
 
+        # Write shadow uniforms to model and render it in a shadow pass
+        model_program["view"].write(view_matrix)
+        model_program["perspective"].write(perspective_matrix)
+        model_program["eye_position"].write(eye_point)
+        model_program["light"].write(light)
+        model_program["is_shadow_pass"].value = True
+        model.render()
+        model_program["is_shadow_pass"].value = False
+
+    pygame.display.flip()
 
 pygame.quit()

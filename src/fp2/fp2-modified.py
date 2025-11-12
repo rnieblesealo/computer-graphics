@@ -635,7 +635,7 @@ while is_running:
     ctx.color_mask = (True, True, True, True)
 
     # --- PASS 1: Render FLOOR (and create stencil if requested) ---
-    if draw_shadow and use_blend:
+    if draw_shadow:  # <-- MODIFIED: Stencil write if shadows are drawn at all
         # Enable stencil test to *write* to the stencil buffer
         glEnable(GL_STENCIL_TEST)
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)  # (sfail, dpfail, dppass)
@@ -671,21 +671,26 @@ while is_running:
             glDisable(GL_STENCIL_TEST)
             glDisable(GL_POLYGON_OFFSET_FILL)
         else:
-            # No stenciling or blending
-            glDisable(GL_STENCIL_TEST)
-            glDisable(GL_BLEND)
+            # --- Clipped Shadow, NO Blending ---
 
-            # --- ADD POLYGON OFFSET HERE ---
-            glEnable(GL_POLYGON_OFFSET_FILL)
-            glPolygonOffset(-1.0, -1.0)  # Use negative values
+            # Stencil Clip Logic (same as 'if use_blend' block)
+            glEnable(GL_STENCIL_TEST)
+            glStencilMask(0x00)  # Disable writing to stencil buffer
+            glStencilFunc(GL_EQUAL, 1, 0xFF)  # Pass test only if stencil value is 1
+            glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO)  # Clip
 
-            # This will render the shadow everywhere
+            glDisable(GL_BLEND)  # Ensure blending is OFF
+
+            # Render the model as a shadow (clipped)
             render_model(
                 view_matrix, perspective_matrix, light, eye_point, is_shadow=True
             )
 
-            # --- AND DISABLE IT AFTER ---
-            glDisable(GL_POLYGON_OFFSET_FILL)
+            # Restore state
+            glDisable(GL_STENCIL_TEST)  # Disable stencil test after shadow render
+
+        # --- FIX: Restore default depth function to LESS ---
+        ctx.depth_func = "<"
 
     # --- PASS 3: Render MODEL (for real) ---
     glDisable(GL_STENCIL_TEST)  # Ensure stencil is off
