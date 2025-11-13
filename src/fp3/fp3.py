@@ -45,81 +45,13 @@ frame_buffer = (
 )  # Get the framebuffer so we can perform off-screen rendering
 
 # =========================================================================================================
-# READ MODEL
+# SHADERS SETUP
 # =========================================================================================================
 
-MODEL_FILEPATH = Path("./chair_table_class/scene.gltf")
+# NOTE: The same shader is used by both floor and model!
 
-model = create3DAssimpObject(
-    MODEL_FILEPATH.as_posix(), verbose=False, textureFlag=True, normalFlag=True
-)
-
-model_bounds = model.bound
-
-# =========================================================================================================
-# CREATE FLOOR GEOMETRY
-# =========================================================================================================
-
-min_corner = model_bounds.boundingBox[0]
-max_corner = glm.vec3(
-    model_bounds.boundingBox[1].x, min_corner.y, model_bounds.boundingBox[1].z
-)
-ctr = (min_corner + max_corner) / 2
-
-plane_point = ctr
-plane_normal = UP  # Floor plane
-
-floor_quad_side_length = FLOOR_SCALE * model_bounds.radius
-floor_quad_mid_side_length = floor_quad_side_length / 2
-
-# fmt: off
-floor_quad_vertices = np.array([
-  ctr.x - floor_quad_mid_side_length, ctr.y, ctr.z - floor_quad_mid_side_length, 0, 1, 0, 0, 0,
-  ctr.x + floor_quad_mid_side_length, ctr.y, ctr.z - floor_quad_mid_side_length, 0, 1, 0, 1, 0,
-  ctr.x + floor_quad_mid_side_length, ctr.y, ctr.z + floor_quad_mid_side_length, 0, 1, 0, 1, 1,
-  ctr.x - floor_quad_mid_side_length, ctr.y, ctr.z + floor_quad_mid_side_length, 0, 1, 0, 0, 1
-]).astype(np.float32)
-# fmt: on
-
-floor_quad_vbo = gl.buffer(floor_quad_vertices)
-
-# fmt: off
-floor_quad_indices = numpy.array([
-  0, 1, 2, 
-  2, 3, 0
-]).astype(np.float32)
-# fmt: on
-
-floor_quad_ibo = gl.buffer(floor_quad_indices)
-
-# =========================================================================================================
-# CREATE FLOOR TEXTURE SAMPLER
-# =========================================================================================================
-
-WOOD_TEXTURE_PATH = Path("./tile-squares-texture.jpg")
-
-wood_texture_img = pygame.image.load(WOOD_TEXTURE_PATH.as_posix())
-wood_texture_data = pygame.image.tobytes(
-    wood_texture_img, "RGB", True
-)  # Flip to match OpenGL coords
-wood_texture = gl.texture(
-    wood_texture_img.get_size(), data=wood_texture_data, components=3
-)
-wood_texture.build_mipmaps()
-
-floor_texture_sampler = gl.sampler(
-    texture=wood_texture,
-    filter=(gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR),
-    repeat_x=True,
-    repeat_y=True,
-)
-
-# =========================================================================================================
-# SHADERS
-# =========================================================================================================
-
-MODEL_VERTEX_SHADER = """
-#version 460 core
+VERTEX_SHADER = """
+#version 410 core
 
 // =========================================================================================================
 // INPUT
@@ -166,8 +98,8 @@ void main(){
 } 
 """
 
-MODEL_FRAGMENT_SHADER = """
-#version 460 core
+FRAGMENT_SHADER = """
+#version 410 core
 
 // =========================================================================================================
 // CONSTANTS
@@ -260,6 +192,151 @@ void main(){
 }
 """
 
-model_program = gl.program(
-    vertex_shader=MODEL_VERTEX_SHADER, fragment_shader=MODEL_FRAGMENT_SHADER
+
+shader_program = gl.program(
+    vertex_shader=VERTEX_SHADER, fragment_shader=FRAGMENT_SHADER
 )
+
+
+def query_program(program):
+    """
+    Displays all uniform variables and their current values in a program.
+    """
+
+    for uniform_name in program:
+        uniform_value = program[uniform_name]
+        print(uniform_name, type(uniform_value), uniform_value)
+
+
+# =========================================================================================================
+# MODEL SETUP
+# =========================================================================================================
+
+MODEL_FILEPATH = Path("./chair_table_class/scene.gltf")
+
+# Load
+model = create3DAssimpObject(
+    MODEL_FILEPATH.as_posix(), verbose=False, textureFlag=True, normalFlag=True
+)
+
+# Renderable + sampler
+model.createRenderableAndSampler(shader_program)
+
+# Get bounds & derived
+model_bounds = model.bound
+min_corner = model_bounds.boundingBox[0]
+max_corner = glm.vec3(
+    model_bounds.boundingBox[1].x, min_corner.y, model_bounds.boundingBox[1].z
+)
+ctr = (min_corner + max_corner) / 2
+
+
+def render_model():
+    """
+    Renders the model.
+    """
+
+    model.render()
+
+
+# =========================================================================================================
+# FLOOR TEXTURE SETUP
+# =========================================================================================================
+
+WOOD_TEXTURE_PATH = Path("./tile-squares-texture.jpg")
+
+wood_texture_img = pygame.image.load(WOOD_TEXTURE_PATH.as_posix())
+wood_texture_data = pygame.image.tobytes(
+    wood_texture_img, "RGB", True
+)  # Flip to match OpenGL coords
+wood_texture = gl.texture(
+    wood_texture_img.get_size(), data=wood_texture_data, components=3
+)
+wood_texture.build_mipmaps()
+
+floor_texture_sampler = gl.sampler(
+    texture=wood_texture,
+    filter=(gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR),
+    repeat_x=True,
+    repeat_y=True,
+)
+
+# =========================================================================================================
+# FLOOR GEOMETRY SETUP
+# =========================================================================================================
+
+floor_point = ctr
+floor_normal = UP  # Floor plane
+
+floor_side_length = FLOOR_SCALE * model_bounds.radius
+floor_midlength = floor_side_length / 2
+
+# fmt: off
+floor_vertices = np.array([
+  ctr.x - floor_midlength, ctr.y, ctr.z - floor_midlength, 0, 1, 0, 0, 0,
+  ctr.x + floor_midlength, ctr.y, ctr.z - floor_midlength, 0, 1, 0, 1, 0,
+  ctr.x + floor_midlength, ctr.y, ctr.z + floor_midlength, 0, 1, 0, 1, 1,
+  ctr.x - floor_midlength, ctr.y, ctr.z + floor_midlength, 0, 1, 0, 0, 1
+]).astype(np.float32)
+# fmt: on
+
+floor_vbo = gl.buffer(floor_vertices)
+
+# fmt: off
+floor_indices = numpy.array([
+  0, 1, 2, 
+  2, 3, 0
+]).astype(np.float32)
+# fmt: on
+
+floor_ibo = gl.buffer(floor_indices)
+
+# =========================================================================================================
+# FLOOR RENDERING SETUP
+# =========================================================================================================
+
+floor_renderer = gl.vertex_array(
+    shader_program,
+    [(floor_vbo, "3f 3f 2f", "position", "normal", "uv")],
+    floor_ibo,
+    index_element_size=4,
+)
+
+
+def render_floor():
+    """
+    Renders the floor.
+    """
+
+    floor_texture_sampler.use(0)
+    shader_program["model"].write(
+        glm.mat4(1)
+    )  # We don't need to transform; we set up the geometry of floor to be in world space already
+    floor_renderer.render()
+
+
+# =========================================================================================================
+# SCENE RENDERING SETUP
+# =========================================================================================================
+
+
+def render_scene(view, perspective, light, eye):
+    """
+    Renders the scene.
+    """
+
+    shader_program["view"].write(view)
+    shader_program["perspective"].write(perspective)
+    shader_program["eye_position"].write(eye)
+    shader_program["light"].write(light)
+
+    render_model()
+
+    shader_program["shininess"] = 0  # Floor should not be shiny
+
+    render_floor()
+
+
+# =========================================================================================================
+# CAMERA SETUP
+# =========================================================================================================
