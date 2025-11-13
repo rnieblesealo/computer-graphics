@@ -11,19 +11,19 @@ from pathlib import Path
 
 # ctypes.windll.user32.SetProcessDPIAware()
 
-# =========================================================================================================
+# ==================================================================================================
 # USEFUL CONSTANTS
-# =========================================================================================================
+# ==================================================================================================
 
 UP = glm.vec3(0, 1, 0)
 FLOOR_SCALE = 3  # Factor to multiply the model bound's radius by
 
-# =========================================================================================================
+# ==================================================================================================
 # PYGAME SETUP
-# =========================================================================================================
+# ==================================================================================================
 
-SCREEN_WIDTH = 500
-SCREEN_HEIGHT = 500
+screen_width = 500
+screen_height = 500
 
 pygame.init()  # Initlizes its different modules. Display module is one of them.
 
@@ -33,7 +33,7 @@ pygame.display.gl_set_attribute(
     pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE
 )
 pygame.display.set_mode(
-    (SCREEN_WIDTH, SCREEN_HEIGHT),
+    (screen_width, screen_height),
     flags=pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
 )
 pygame.display.set_caption(title="Project Substitute 3: Rafael Niebles")
@@ -44,42 +44,42 @@ frame_buffer = (
     gl.detect_framebuffer()
 )  # Get the framebuffer so we can perform off-screen rendering
 
-# =========================================================================================================
+# ==================================================================================================
 # SHADERS SETUP
-# =========================================================================================================
+# ==================================================================================================
 
 # NOTE: The same shader is used by both floor and model!
 
 VERTEX_SHADER = """
 #version 410 core
 
-// =========================================================================================================
+// =================================================================================================
 // INPUT
-// =========================================================================================================
+// =================================================================================================
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
 layout(location = 2) in vec2 uv;
 
-// =========================================================================================================
+// =================================================================================================
 // OUTPUT
-// =========================================================================================================
+// =================================================================================================
 
 out vec2 f_uv; // Same as in
 out vec3 f_normal; // Normal in world coordinates (and normalized to 0-1)
 out vec3 f_position; // Position in world coordinates
 
-// =========================================================================================================
+// =================================================================================================
 // UNIFORM
-// =========================================================================================================
+// =================================================================================================
 
 uniform mat4 model; // Converts from model -> world
 uniform mat4 view; // Converts from world -> camera
 uniform mat4 perspective; // Applies depth
 
-// =========================================================================================================
+// =================================================================================================
 // MAIN
-// =========================================================================================================
+// =================================================================================================
 
 void main(){
   // Model -> world
@@ -101,31 +101,31 @@ void main(){
 FRAGMENT_SHADER = """
 #version 410 core
 
-// =========================================================================================================
+// =================================================================================================
 // CONSTANTS
-// =========================================================================================================
+// =================================================================================================
 
 const vec3 UP = vec3(0, 1, 0);
 const vec3 GROUND_COLOR = vec3(0.3215686274509804,0.4,0.10980392156862745);
 const vec3 SKY_COLOR = vec3(0.7176470588235294, 0.7411764705882353, 0.7529411764705882);
 
-// =========================================================================================================
+// =================================================================================================
 // INPUT
-// =========================================================================================================
+// =================================================================================================
 
 in vec2 f_uv; // UV
 in vec3 f_normal; // Normalized and in world coords
 in vec3 f_position; // In world coords
 
-// =========================================================================================================
+// =================================================================================================
 // OUTPUT
-// =========================================================================================================
+// =================================================================================================
 
 out vec4 out_color;
 
-// =========================================================================================================
+// =================================================================================================
 // UNIFORM
-// =========================================================================================================
+// =================================================================================================
 
 uniform int pcf; // Percentage closer filtering
 uniform bool bias_flag; // Use shadow bias
@@ -135,9 +135,9 @@ uniform vec3 k_diffuse; // Diffuse coefficient; how much incoming light should s
 uniform vec3 light;
 uniform sampler2D map;
 
-// =========================================================================================================
+// =================================================================================================
 // AUX FUNCTIONS
-// =========================================================================================================
+// =================================================================================================
 
 float computeVisibilityFactor(){
   return 1.0;
@@ -183,9 +183,9 @@ vec3 computeColor(){
   return color;
 }
 
-// =========================================================================================================
+// =================================================================================================
 // MAIN
-// =========================================================================================================
+// =================================================================================================
 
 void main(){
   out_color = vec4(computeColor(), 1);
@@ -208,9 +208,9 @@ def query_program(program):
         print(uniform_name, type(uniform_value), uniform_value)
 
 
-# =========================================================================================================
+# ==================================================================================================
 # MODEL SETUP
-# =========================================================================================================
+# ==================================================================================================
 
 MODEL_FILEPATH = Path("./chair_table_class/scene.gltf")
 
@@ -239,31 +239,31 @@ def render_model():
     model.render()
 
 
-# =========================================================================================================
+# ==================================================================================================
 # FLOOR TEXTURE SETUP
-# =========================================================================================================
+# ==================================================================================================
 
-WOOD_TEXTURE_PATH = Path("./tile-squares-texture.jpg")
+FLOOR_TEXTURE_PATH = Path("./tile-squares-texture.jpg")
 
-wood_texture_img = pygame.image.load(WOOD_TEXTURE_PATH.as_posix())
-wood_texture_data = pygame.image.tobytes(
-    wood_texture_img, "RGB", True
+floor_texture_img = pygame.image.load(FLOOR_TEXTURE_PATH.as_posix())
+floor_texture_data = pygame.image.tobytes(
+    floor_texture_img, "RGB", True
 )  # Flip to match OpenGL coords
-wood_texture = gl.texture(
-    wood_texture_img.get_size(), data=wood_texture_data, components=3
+floor_texture = gl.texture(
+    floor_texture_img.get_size(), data=floor_texture_data, components=3
 )
-wood_texture.build_mipmaps()
+floor_texture.build_mipmaps()
 
-floor_texture_sampler = gl.sampler(
-    texture=wood_texture,
+floor_sampler = gl.sampler(
+    texture=floor_texture,
     filter=(gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR),
     repeat_x=True,
     repeat_y=True,
 )
 
-# =========================================================================================================
+# ==================================================================================================
 # FLOOR GEOMETRY SETUP
-# =========================================================================================================
+# ==================================================================================================
 
 floor_point = ctr
 floor_normal = UP  # Floor plane
@@ -286,14 +286,14 @@ floor_vbo = gl.buffer(floor_vertices)
 floor_indices = numpy.array([
   0, 1, 2, 
   2, 3, 0
-]).astype(np.float32)
+]).astype(np.int32)
 # fmt: on
 
 floor_ibo = gl.buffer(floor_indices)
 
-# =========================================================================================================
+# ==================================================================================================
 # FLOOR RENDERING SETUP
-# =========================================================================================================
+# ==================================================================================================
 
 floor_renderer = gl.vertex_array(
     shader_program,
@@ -308,16 +308,16 @@ def render_floor():
     Renders the floor.
     """
 
-    floor_texture_sampler.use(0)
+    floor_sampler.use(0)
     shader_program["model"].write(
         glm.mat4(1)
     )  # We don't need to transform; we set up the geometry of floor to be in world space already
     floor_renderer.render()
 
 
-# =========================================================================================================
+# ==================================================================================================
 # SCENE RENDERING SETUP
-# =========================================================================================================
+# ==================================================================================================
 
 
 def render_scene(view, perspective, light, eye):
@@ -332,11 +332,137 @@ def render_scene(view, perspective, light, eye):
 
     render_model()
 
-    shader_program["shininess"] = 0  # Floor should not be shiny
+    shader_program["shininess"].value = 0  # Floor should not be shiny
 
     render_floor()
 
 
-# =========================================================================================================
+def show_shadow_map():
+    """
+    Displays the shadowmap in a separate viewport.
+    """
+
+    shadowmap_viewport_size = screen_width / 4
+
+    gl.viewport = (
+        screen_width - shadowmap_viewport_size,
+        screen_height - shadowmap_viewport_size,
+        shadowmap_viewport_size,
+        shadowmap_viewport_size,
+    )
+
+    gl.clear(color=(0.5, 0.5, 0.5), viewport=gl.viewport)
+
+    # TODO: Make render call to show shadowmap on this new viewport
+
+    gl.viewport = 0, 0, screen_width, screen_height
+
+
+# ==================================================================================================
 # CAMERA SETUP
-# =========================================================================================================
+# ==================================================================================================
+
+camera_displacement = 4 * model_bounds.radius * glm.rotateX(UP, glm.radians(85))
+camera_target = glm.vec3(model_bounds.center)
+
+light_displacement = 4 * model_bounds.radius * glm.rotateZ(UP, glm.radians(45))
+
+fov_in_radians = glm.radians(30)
+
+aspect = screen_width / screen_height
+
+near_clip = model_bounds.radius
+far_clip = 20 * model_bounds.radius
+
+perspective_matrix = glm.perspective(fov_in_radians, aspect, near_clip, far_clip)
+
+
+# ==================================================================================================
+# RENDER LOOP
+# ==================================================================================================
+
+TARGET_FPS = 60
+
+clock = pygame.time.Clock()
+
+world_rotation = 0
+light_angle = 0
+
+pcf = 0
+
+gl.enable(gl.DEPTH_TEST)
+gl.depth_func = "<="
+
+debug_mode = False
+use_bias = True
+is_paused = True
+is_running = True
+
+while is_running:
+
+    # ----------------------------------------------------------------------------------------------
+    # EVENTS
+    # ----------------------------------------------------------------------------------------------
+
+    for event in pygame.event.get():
+        match event.type:
+            case pygame.QUIT:
+                is_running = False
+            case pygame.KEYDOWN:
+                match event.key:
+                    case pygame.K_ESCAPE:
+                        is_running = False
+                    case pygame.K_p:
+                        is_paused = not is_paused
+                    case pygame.K_d:
+                        debug_mode = not debug_mode
+                    case pygame.K_b:
+                        use_bias = not use_bias
+                    case pygame.K_LEFT:
+                        light_angle -= 5
+                    case pygame.K_RIGHT:
+                        light_angle += 5
+            case pygame.WINDOWRESIZED:
+                screen_width = event.x
+                screen_height = event.y
+
+                perspective_matrix = glm.perspective(
+                    fov_in_radians, screen_width / screen_height, near_clip, far_clip
+                )
+
+    # ----------------------------------------------------------------------------------------------
+    # UPDATE
+    # ----------------------------------------------------------------------------------------------
+
+    # The original displacements but with light and global rotations applied
+    new_cam_displacement = glm.rotateY(camera_displacement, glm.radians(world_rotation))
+    new_light_displacement = glm.rotateY(light_displacement, glm.radians(light_angle))
+
+    light_position = camera_target + new_light_displacement
+    camera_position = camera_target + new_cam_displacement
+
+    view_matrix = glm.lookAt(camera_position, camera_target, UP)
+
+    dt = clock.tick(TARGET_FPS)
+    if not is_paused:
+        world_rotation += 1
+        if world_rotation >= 360:
+            world_rotation = 0
+
+    # ----------------------------------------------------------------------------------------------
+    # RENDER
+    # ----------------------------------------------------------------------------------------------
+
+    gl.clear(color=(0.2, 0.2, 0))
+
+    render_scene(view_matrix, perspective_matrix, light_position, camera_position)
+
+    # TODO: Replace render scene call with 2 passes, one that creates shadow map, and
+    # another that uses the shadow map. Each pass calls render_scene with appropriate uniforms.
+
+    if debug_mode:
+        show_shadow_map()
+
+    pygame.display.flip()
+
+pygame.quit()
