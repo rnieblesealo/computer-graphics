@@ -362,20 +362,39 @@ def show_shadow_map():
 # CAMERA SETUP
 # ==================================================================================================
 
-camera_displacement = 4 * model_bounds.radius * glm.rotateX(UP, glm.radians(85))
-camera_target = glm.vec3(model_bounds.center)
-
-light_displacement = 4 * model_bounds.radius * glm.rotateZ(UP, glm.radians(45))
-
-fov_in_radians = glm.radians(30)
+# General
 
 aspect = screen_width / screen_height
 
-near_clip = model_bounds.radius
-far_clip = 20 * model_bounds.radius
+# Lighting
 
-perspective_matrix = glm.perspective(fov_in_radians, aspect, near_clip, far_clip)
+light_displacement = 4 * model_bounds.radius * glm.rotateZ(UP, glm.radians(45))
 
+# Main camera
+
+main_cam_displacement = 4 * model_bounds.radius * glm.rotateX(UP, glm.radians(85))
+
+main_cam_target = glm.vec3(model_bounds.center)
+
+main_cam_near = model_bounds.radius
+main_cam_far = 20 * model_bounds.radius
+
+main_cam_fov = glm.radians(30)
+
+main_cam_persp_matrix = glm.perspective(
+    main_cam_fov, aspect, main_cam_near, main_cam_far
+)
+
+# Light camera
+
+light_cam_near = main_cam_near
+light_cam_far = 10 * model_bounds.radius
+
+light_cam_fov = glm.radians(60)
+
+light_cam_persp_matrix = glm.perspective(
+    light_cam_fov, aspect, light_cam_near, light_cam_far
+)
 
 # ==================================================================================================
 # RENDER LOOP
@@ -426,22 +445,40 @@ while is_running:
                 screen_width = event.x
                 screen_height = event.y
 
-                perspective_matrix = glm.perspective(
-                    fov_in_radians, screen_width / screen_height, near_clip, far_clip
+                # Recompute perspective on resize
+                main_cam_persp_matrix = glm.perspective(
+                    main_cam_fov,
+                    screen_width / screen_height,
+                    main_cam_near,
+                    main_cam_far,
+                )
+
+                light_cam_persp_matrix = glm.perspective(
+                    light_cam_fov,
+                    screen_width / screen_height,
+                    light_cam_near,
+                    light_cam_far,
                 )
 
     # ----------------------------------------------------------------------------------------------
     # UPDATE
     # ----------------------------------------------------------------------------------------------
 
-    # The original displacements but with light and global rotations applied
-    new_cam_displacement = glm.rotateY(camera_displacement, glm.radians(world_rotation))
-    new_light_displacement = glm.rotateY(light_displacement, glm.radians(light_angle))
+    # Apply global rotations (light + camera rotation) to the displacements
+    final_light_disp = glm.rotateY(light_displacement, glm.radians(light_angle))
 
-    light_position = camera_target + new_light_displacement
-    camera_position = camera_target + new_cam_displacement
+    final_main_cam_disp = glm.rotateY(
+        main_cam_displacement, glm.radians(world_rotation)
+    )
 
-    view_matrix = glm.lookAt(camera_position, camera_target, UP)
+    # Get final points
+    light_point = main_cam_target + final_light_disp
+
+    main_cam_point = main_cam_target + final_main_cam_disp
+
+    # Compute view matrices for cameras
+    main_cam_view_matrix = glm.lookAt(main_cam_point, main_cam_target, UP)
+    light_cam_view_matrix = glm.lookAt(light_point, main_cam_target, UP)
 
     dt = clock.tick(TARGET_FPS)
     if not is_paused:
@@ -455,7 +492,9 @@ while is_running:
 
     gl.clear(color=(0.2, 0.2, 0))
 
-    render_scene(view_matrix, perspective_matrix, light_position, camera_position)
+    render_scene(
+        main_cam_view_matrix, main_cam_persp_matrix, light_point, main_cam_point
+    )
 
     # TODO: Replace render scene call with 2 passes, one that creates shadow map, and
     # another that uses the shadow map. Each pass calls render_scene with appropriate uniforms.
