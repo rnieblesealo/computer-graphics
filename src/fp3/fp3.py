@@ -1,4 +1,3 @@
-import ctypes
 import glm
 import moderngl
 import numpy
@@ -6,10 +5,7 @@ import numpy as np
 import pygame
 
 from loadModelUsingAssimp_V3 import create3DAssimpObject
-from math import cos, sin, sqrt
 from pathlib import Path
-
-# ctypes.windll.user32.SetProcessDPIAware()
 
 # ==================================================================================================
 # USEFUL CONSTANTS
@@ -152,7 +148,7 @@ float computeVisibilityFactor(){
     // Convert fragment pos to light space
     vec4 light_space_pos = light_cam_persp * light_cam_view * vec4(f_position, 1.0);
 
-    // Divide by perspective for normalized device coords (NDC) which are coords ranging from -1 to 1
+    // Divide by perspective for normalized device coords (NDC) which range from -1 to 1
     vec3 proj_coords = light_space_pos.xyz / light_space_pos.w; 
 
     // Convert range from [-1, 1] to [0, 1] (no negatives)
@@ -199,7 +195,7 @@ float computeVisibilityFactor(){
 }
 
 vec3 computeColor(){
-  vec3 light_vector = normalize(light.xyz - f_position); // Represents direction to the light source; assumes point light 
+  vec3 light_vector = normalize(light.xyz - f_position); // Represents direction to light source
   vec3 material_color = texture(map, f_uv).rgb; // Sample the texture
   vec3 normal = normalize(f_normal); // Renormalize for safety
 
@@ -214,10 +210,14 @@ vec3 computeColor(){
   // Get fractional light visibility
   float fractional_light_vis = computeVisibilityFactor();
 
+
+
   // If the light's intensity is greater than 0 
-  float n_dot_l = dot(normal, light_vector); // Quantifies direction of light relative to normal; encodes the light's intensity
+  // N dot L quantifies direction of light relative to normal
+  float n_dot_l = dot(normal, light_vector); 
+  
   if (n_dot_l > 0){
-    vec3 diffuse_color = material_color * n_dot_l; // Base color with diffuse reflection applied to it
+    vec3 diffuse_color = material_color * n_dot_l; // Base color with diffuse reflection
     vec3 eye_vector = normalize(eye_position - f_position); // Points from surface vertex to camera
     vec3 halfway = normalize(light_vector + eye_vector); // Halfway between light and camera
     
@@ -541,9 +541,6 @@ fullscreen_quad_vao = gl.simple_vertex_array(
     debug_shader_program, fullscreen_quad_vbo, "in_vert"
 )
 
-# NOTE: To avoid writing a new fragment shader, we reuse the original with the debug
-# depth fragment shader. It simply eats position and normal from the original vertex shader.
-
 
 def show_debug_shadow_map():
     """
@@ -647,24 +644,31 @@ while is_running:
                         is_running = False
                     case pygame.K_p:
                         is_paused = not is_paused
+                        print("Pause: ", is_paused)
                     case pygame.K_d:
                         debug_mode = not debug_mode
+                        print("Debug Mode: ", debug_mode)
                     case pygame.K_b:
                         use_bias = not use_bias
+                        print("Use Bias: ", use_bias)
                     case pygame.K_UP:
                         if pcf + 1 > 3:
                             pcf = 3
                         else:
                             pcf += 1
+                        print("PCF: ", pcf)
                     case pygame.K_DOWN:
                         if pcf - 1 < 0:
                             pcf = 0
                         else:
                             pcf -= 1
+                        print("PCF: ", pcf)
                     case pygame.K_LEFT:
                         light_angle -= 5
+                        print("Light Angle: ", light_angle)
                     case pygame.K_RIGHT:
                         light_angle += 5
+                        print("Light Angle: ", light_angle)
             case pygame.WINDOWRESIZED:
                 screen_width = event.x
                 screen_height = event.y
