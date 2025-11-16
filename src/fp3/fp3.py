@@ -135,6 +135,8 @@ uniform vec3 k_diffuse; // Diffuse coefficient; how much incoming light should s
 uniform vec3 light;
 uniform sampler2D map;
 
+uniform bool color_flag; // Render with color?
+
 // =================================================================================================
 // AUX FUNCTIONS
 // =================================================================================================
@@ -188,7 +190,11 @@ vec3 computeColor(){
 // =================================================================================================
 
 void main(){
-  out_color = vec4(computeColor(), 1);
+    if (color_flag){
+        out_color = vec4(computeColor(), 1);
+    } else {
+        out_color = vec4(1, 1, 1, 1);
+    }
 }
 """
 
@@ -324,6 +330,8 @@ def render_scene(view, perspective, light, eye):
     """
     Renders the scene.
     """
+
+    shader_program["color_flag"].value = False
 
     shader_program["view"].write(view)
     shader_program["perspective"].write(perspective)
