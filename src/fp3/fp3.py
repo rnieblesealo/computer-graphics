@@ -251,9 +251,74 @@ void main(){
 }
 """
 
+DEBUG_VERTEX_SHADER = """
+#version 410 core
+
+// =================================================================================================
+// INPUT
+// =================================================================================================
+
+in vec2 in_vert;
+
+// =================================================================================================
+// OUTPUT
+// =================================================================================================
+
+out vec2 uv; 
+
+// =================================================================================================
+// MAIN
+// =================================================================================================
+
+void main(){
+    uv = in_vert;
+
+    // Convert vertex coords to NDC for proper rendering 
+    gl_Position = vec4(in_vert * 2.0 - 1.0, 0.0, 1.0);
+}
+
+"""
+
+DEBUG_FRAGMENT_SHADER = """
+#version 410 core
+
+// =================================================================================================
+// INPUT
+// =================================================================================================
+
+in vec2 uv;
+
+// =================================================================================================
+// OUTPUT
+// =================================================================================================
+
+out vec4 f_color;
+
+// =================================================================================================
+// UNIFORM
+// =================================================================================================
+
+uniform sampler2D shadow_map; 
+
+// =================================================================================================
+// MAIN
+// =================================================================================================
+
+void main(){
+    // Sample the depth texture's first channel
+    float depth = texture(shadow_map, uv).r;
+
+    // Set the color to be that
+    f_color = vec4(vec3(depth), 1);
+}
+"""
 
 shader_program = gl.program(
     vertex_shader=VERTEX_SHADER, fragment_shader=FRAGMENT_SHADER
+)
+
+debug_shader_program = gl.program(
+    vertex_shader=DEBUG_VERTEX_SHADER, fragment_shader=DEBUG_FRAGMENT_SHADER
 )
 
 
@@ -396,6 +461,7 @@ def render_scene(
 
     shader_program["eye_position"].write(eye_point)
 
+    # Put shadow map at slot 1 (0 is the albedo)
     shadow_map_sampler.use(1)
     shader_program["shadow_map"].value = 1
 
@@ -406,6 +472,7 @@ def render_scene(
     # SHADOW PASS
     # ----------------------------------------------------------------------------------------------
 
+    shadow_fb.clear(depth=1.0)  # Clear the depth buffer with white (white = max depth)
     shadow_fb.use()
 
     shader_program["view"].write(light_view)
@@ -438,31 +505,9 @@ def render_scene(
     render_floor()
 
 
-def show_shadow_map():
-    """
-    Displays the shadowmap in a separate viewport.
-    """
-
-    debug_viewport_size = screen_width / 4
-
-    gl.viewport = (
-        screen_width - debug_viewport_size,
-        screen_height - debug_viewport_size,
-        debug_viewport_size,
-        debug_viewport_size,
-    )
-
-    gl.clear(color=(0.5, 0.5, 0.5), viewport=gl.viewport)
-
-    # TODO: Show shadow map here
-
-    gl.viewport = 0, 0, screen_width, screen_height
-
-
 # ==================================================================================================
 # SHADOW MAPPING SETUP
 # ==================================================================================================
-
 
 DEPTH_TEXTURE_SIZE = (2048, 2048)
 
@@ -478,6 +523,55 @@ shadow_map_sampler = gl.sampler(
     filter=(gl.NEAREST, gl.NEAREST),  # No filtering for depth
 )
 
+# ==================================================================================================
+# DEBUG MODE SETUP
+# ==================================================================================================
+
+# fmt: off
+fullscreen_quad_vertices = np.array([
+    0.0, 0.0, # Bottom left 
+    0.0, 1.0, # Top left  
+    1.0, 0.0, # Bottom right
+    1.0, 1.0  # Top right
+]).astype(np.float32)
+# fmt: on
+
+fullscreen_quad_vbo = gl.buffer(fullscreen_quad_vertices.tobytes())
+fullscreen_quad_vao = gl.simple_vertex_array(
+    debug_shader_program, fullscreen_quad_vbo, "in_vert"
+)
+
+# NOTE: To avoid writing a new fragment shader, we reuse the original with the debug
+# depth fragment shader. It simply eats position and normal from the original vertex shader.
+
+
+def show_debug_shadow_map():
+    """
+    Displays the shadowmap in a separate viewport.
+    """
+
+    debug_viewport_size = screen_width / 4
+
+    # Adjust viewport bounds to fraction of screen
+    gl.viewport = (
+        screen_width - debug_viewport_size,
+        screen_height - debug_viewport_size,
+        debug_viewport_size,
+        debug_viewport_size,
+    )
+
+    gl.clear(color=(0.5, 0.5, 0.5), viewport=gl.viewport)
+
+    # Bind depth texture
+    shadow_map_sampler.use(0)
+    debug_shader_program["shadow_map"].value = 0
+
+    # Render debug view
+    fullscreen_quad_vao.render(moderngl.TRIANGLE_STRIP)
+
+    # Restore full viewport bounds
+    gl.viewport = 0, 0, screen_width, screen_height
+
 
 # ==================================================================================================
 # CAMERA SETUP
@@ -487,7 +581,7 @@ shadow_map_sampler = gl.sampler(
 
 aspect = screen_width / screen_height
 
-# Lighting
+# Light
 
 light_displacement = 4 * model_bounds.radius * glm.rotateZ(UP, glm.radians(45))
 
@@ -634,7 +728,7 @@ while is_running:
     )
 
     if debug_mode:
-        show_shadow_map()
+        show_debug_shadow_map()
 
     pygame.display.flip()
 
