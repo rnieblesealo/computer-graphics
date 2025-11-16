@@ -127,8 +127,6 @@ out vec4 out_color;
 // UNIFORM
 // =================================================================================================
 
-uniform int pcf; // Percentage closer filtering
-uniform bool bias_flag; // Use shadow bias
 uniform float shininess;
 uniform vec3 eye_position;
 uniform vec3 k_diffuse; // Diffuse coefficient; how much incoming light should scatter? 
@@ -137,12 +135,66 @@ uniform sampler2D map;
 
 uniform bool color_flag; // Render with color?
 
+/* 2 PASS RELATED */
+
+uniform int pcf; // Percentage closer filtering
+uniform bool bias_flag; // Use shadow bias
+uniform sampler2D shadow_map; // Sampler for shadow map
+uniform mat4 light_cam_view; // Matrices for light cam
+uniform mat4 light_cam_persp;
+
 // =================================================================================================
 // AUX FUNCTIONS
 // =================================================================================================
 
 float computeVisibilityFactor(){
-  return 1.0;
+    // Convert fragment pos to light space
+    vec4 light_space_pos = light_cam_persp * light_cam_view * vec4(f_position, 1.0);
+
+    // Divide by perspective for normalized device coords (NDC) which are coords ranging from -1 to 1
+    vec3 proj_coords = light_space_pos.xyz / light_space_pos.w; 
+
+    // Convert range from [-1, 1] to [0, 1] (no negatives)
+    // This is so that we can use these coords for texture sampling 
+    proj_coords = proj_coords * 0.5 + 0.5;
+
+    // Check if fragment goes off bounds
+    if (proj_coords.z > 1.0 || 
+        proj_coords.x < 0.0 || proj_coords.x > 1.0 || 
+        proj_coords.y < 0.0 || proj_coords.y > 1.0) {
+        return 1.0; // Anything outside the shadowmap is fully lit
+    }
+
+    // Get depth of current fragment from light's perspective
+    float current_depth = proj_coords.z;
+
+    // Add bias
+    // Bias pulls fragment slightly toward light before depth comparison
+    // This avoids self-shadowing
+    float bias = bias_flag ? 0.005 : 0.0;
+
+    // PCF calculation
+    if (pcf > 0){
+        float shadow = 0;
+        vec2 texel_size = 1.0 / textureSize(shadow_map, 0);
+
+        // Sample surrounding texels based on PCF value
+        for (int x = -pcf; x <= pcf; ++x){
+            for (int y = -pcf; y <= pcf; ++y){
+                float pcf_depth = texture(shadow_map, proj_coords.xy + vec2(x, y) * texel_size).r;
+                shadow += (current_depth - bias) > pcf_depth ? 0.0 : 1.0;
+            }
+        }
+
+        // Average samples to get fractional visibility
+        int samples = (2 * pcf + 1) * (2 * pcf + 1);
+    
+        return shadow / float(samples);
+    } else {
+        // Simple shadow test with no PCF
+        float closest_depth = texture(shadow_map, proj_coords.xy).r;
+        return (current_depth - bias) > closest_depth ? 0.0 : 1.0;
+    }
 }
 
 vec3 computeColor(){
@@ -218,7 +270,7 @@ def query_program(program):
 # MODEL SETUP
 # ==================================================================================================
 
-MODEL_FILEPATH = Path("./chair_table_class/scene.gltf")
+MODEL_FILEPATH = Path("./mario_obj/scene.gltf")
 
 # Load
 model = create3DAssimpObject(
@@ -315,9 +367,11 @@ def render_floor():
     """
 
     floor_sampler.use(0)
+
     shader_program["model"].write(
         glm.mat4(1)
     )  # We don't need to transform; we set up the geometry of floor to be in world space already
+
     floor_renderer.render()
 
 
@@ -326,17 +380,43 @@ def render_floor():
 # ==================================================================================================
 
 
-def render_scene(view, perspective, light, eye):
+def render_scene(view, perspective, light_cam_view, light_cam_perspective, light, eye):
     """
     Renders the scene.
     """
 
-    shader_program["color_flag"].value = False
-
     shader_program["view"].write(view)
     shader_program["perspective"].write(perspective)
-    shader_program["eye_position"].write(eye)
+
+    shader_program["light_cam_view"].write(light_cam_view)
+    shader_program["light_cam_persp"].write(light_cam_perspective)
+
     shader_program["light"].write(light)
+
+    shader_program["eye_position"].write(eye)
+
+    # Shadow map sampler
+    shadow_map_sampler.use(1)
+    shader_program["shadow_map"].value = 1
+
+    # 2 pass specific params
+    shader_program["bias_flag"].value = False
+    shader_program["pcf"] = 0
+
+    # SHADOW PASS ----------------------------------------------------------------------------------
+
+    shadow_fb.use()
+
+    shader_program["color_flag"].value = False
+
+    render_model()
+    render_floor()
+
+    # MAIN PASS ------------------------------------------------------------------------------------
+
+    main_fb.use()
+
+    shader_program["color_flag"].value = True
 
     render_model()
 
@@ -520,7 +600,12 @@ while is_running:
     gl.clear(color=(0.2, 0.2, 0))
 
     render_scene(
-        main_cam_view_matrix, main_cam_persp_matrix, light_point, main_cam_point
+        main_cam_view_matrix,
+        main_cam_persp_matrix,
+        light_cam_view_matrix,
+        light_cam_persp_matrix,
+        light_point,
+        main_cam_point,
     )
 
     # TODO: Replace render scene call with 2 passes, one that creates shadow map, and
