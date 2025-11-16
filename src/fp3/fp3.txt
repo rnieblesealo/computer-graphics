@@ -40,7 +40,7 @@ pygame.display.set_caption(title="Project Substitute 3: Rafael Niebles")
 
 gl = moderngl.get_context()
 
-main_fb = (
+frame_buffer = (
     gl.detect_framebuffer()
 )  # Get the framebuffer so we can perform off-screen rendering
 
@@ -367,23 +367,14 @@ def show_shadow_map():
 
 
 # ==================================================================================================
-# SHADOW MAPPING SETUP
+# DEPTH TEXTURE SETUP
 # ==================================================================================================
 
+depth_texture_size = (2048, 2048)
+depth_texture = gl.texture(
+    depth_texture_size, 1
+)  # Channel size of 1 since is grayscale
 
-DEPTH_TEXTURE_SIZE = (2048, 2048)
-
-# Create depth texture
-depth_texture = gl.depth_texture(DEPTH_TEXTURE_SIZE)
-
-# Make a framebuffer for shadows
-shadow_fb = gl.framebuffer(depth_attachment=depth_texture)
-
-# Make a depth texture sampler
-shadow_map_sampler = gl.sampler(
-    texture=depth_texture,
-    filter=(gl.NEAREST, gl.NEAREST),  # No filtering for depth
-)
 
 # ==================================================================================================
 # CAMERA SETUP
