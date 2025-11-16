@@ -108,6 +108,7 @@ FRAGMENT_SHADER = """
 const vec3 UP = vec3(0, 1, 0);
 const vec3 GROUND_COLOR = vec3(0.3215686274509804,0.4,0.10980392156862745);
 const vec3 SKY_COLOR = vec3(0.7176470588235294, 0.7411764705882353, 0.7529411764705882);
+const float BIAS_AMOUNT = 0.005;
 
 // =================================================================================================
 // INPUT
@@ -171,7 +172,7 @@ float computeVisibilityFactor(){
     // Add bias
     // Bias pulls fragment slightly toward light before depth comparison
     // This avoids self-shadowing
-    float bias = bias_flag ? 0.005 : 0.0;
+    float bias = bias_flag ? BIAS_AMOUNT : 0.0;
 
     // PCF calculation
     if (pcf > 0){
@@ -380,7 +381,9 @@ def render_floor():
 # ==================================================================================================
 
 
-def render_scene(view, perspective, light_cam_view, light_cam_perspective, light, eye):
+def render_scene(
+    view, perspective, light_cam_view, light_cam_perspective, light, eye, bias, pcf
+):
     """
     Renders the scene.
     """
@@ -396,8 +399,8 @@ def render_scene(view, perspective, light_cam_view, light_cam_perspective, light
     shadow_map_sampler.use(1)
     shader_program["shadow_map"].value = 1
 
-    shader_program["bias_flag"].value = True
-    shader_program["pcf"] = 3
+    shader_program["bias_flag"].value = bias
+    shader_program["pcf"] = pcf
 
     # SHADOW PASS ----------------------------------------------------------------------------------
 
@@ -469,6 +472,7 @@ shadow_map_sampler = gl.sampler(
     filter=(gl.NEAREST, gl.NEAREST),  # No filtering for depth
 )
 
+
 # ==================================================================================================
 # CAMERA SETUP
 # ==================================================================================================
@@ -518,8 +522,6 @@ clock = pygame.time.Clock()
 world_rotation = 0
 light_angle = 0
 
-pcf = 0
-
 gl.enable(gl.DEPTH_TEST)
 gl.depth_func = "<="
 
@@ -527,6 +529,7 @@ debug_mode = False
 use_bias = True
 is_paused = True
 is_running = True
+pcf = 0
 
 while is_running:
 
@@ -548,6 +551,16 @@ while is_running:
                         debug_mode = not debug_mode
                     case pygame.K_b:
                         use_bias = not use_bias
+                    case pygame.K_UP:
+                        if pcf + 1 > 3:
+                            pcf = 3
+                        else:
+                            pcf += 1
+                    case pygame.K_DOWN:
+                        if pcf - 1 < 0:
+                            pcf = 0
+                        else:
+                            pcf -= 1
                     case pygame.K_LEFT:
                         light_angle -= 5
                     case pygame.K_RIGHT:
@@ -604,12 +617,14 @@ while is_running:
     gl.clear(color=(0.2, 0.2, 0))
 
     render_scene(
-        main_cam_view_matrix,
-        main_cam_persp_matrix,
-        light_cam_view_matrix,
-        light_cam_persp_matrix,
-        light_point,
-        main_cam_point,
+        view=main_cam_view_matrix,
+        perspective=main_cam_persp_matrix,
+        light_cam_view=light_cam_view_matrix,
+        light_cam_perspective=light_cam_persp_matrix,
+        light=light_point,
+        eye=main_cam_point,
+        bias=use_bias,
+        pcf=pcf,
     )
 
     if debug_mode:
