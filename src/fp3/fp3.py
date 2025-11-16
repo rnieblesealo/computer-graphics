@@ -382,19 +382,19 @@ def render_floor():
 
 
 def render_scene(
-    view, perspective, light_cam_view, light_cam_perspective, light, eye, bias, pcf
+    view, perspective, light_view, light_perspective, light_point, eye_point, bias, pcf
 ):
     """
     Renders the scene.
     """
 
-    shader_program["light"].write(light)
+    shader_program["light"].write(light_point)
 
     # Used for correct shading coord calculation; only need to set once
-    shader_program["light_cam_view"].write(light_cam_view)
-    shader_program["light_cam_persp"].write(light_cam_perspective)
+    shader_program["light_cam_view"].write(light_view)
+    shader_program["light_cam_persp"].write(light_perspective)
 
-    shader_program["eye_position"].write(eye)
+    shader_program["eye_position"].write(eye_point)
 
     shadow_map_sampler.use(1)
     shader_program["shadow_map"].value = 1
@@ -402,20 +402,26 @@ def render_scene(
     shader_program["bias_flag"].value = bias
     shader_program["pcf"] = pcf
 
-    # SHADOW PASS ----------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # SHADOW PASS
+    # ----------------------------------------------------------------------------------------------
 
     shadow_fb.use()
 
-    shader_program["view"].write(light_cam_view)
+    shader_program["view"].write(light_view)
     shader_program["perspective"].write(
-        light_cam_perspective
+        light_perspective
     )  # Make shadowmap from light camera POV
-    shader_program["color_flag"].value = False  # Don't need color for shading
+    shader_program["color_flag"].value = (
+        False  # Don't need color for shading; setting doesn't really matter though
+    )
 
     render_model()
     render_floor()
 
-    # MAIN PASS ------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # RENDER PASS
+    # ----------------------------------------------------------------------------------------------
 
     main_fb.use()
 
@@ -423,7 +429,7 @@ def render_scene(
     shader_program["perspective"].write(
         perspective
     )  # Switch to main camera POV for actual rendering
-    shader_program["color_flag"].value = True  # We do want colors now!
+    shader_program["color_flag"].value = True  # Use colors now
 
     render_model()
 
@@ -437,18 +443,18 @@ def show_shadow_map():
     Displays the shadowmap in a separate viewport.
     """
 
-    shadowmap_viewport_size = screen_width / 4
+    debug_viewport_size = screen_width / 4
 
     gl.viewport = (
-        screen_width - shadowmap_viewport_size,
-        screen_height - shadowmap_viewport_size,
-        shadowmap_viewport_size,
-        shadowmap_viewport_size,
+        screen_width - debug_viewport_size,
+        screen_height - debug_viewport_size,
+        debug_viewport_size,
+        debug_viewport_size,
     )
 
     gl.clear(color=(0.5, 0.5, 0.5), viewport=gl.viewport)
 
-    # TODO: Make render call to show shadowmap on this new viewport
+    # TODO: Show shadow map here
 
     gl.viewport = 0, 0, screen_width, screen_height
 
@@ -619,10 +625,10 @@ while is_running:
     render_scene(
         view=main_cam_view_matrix,
         perspective=main_cam_persp_matrix,
-        light_cam_view=light_cam_view_matrix,
-        light_cam_perspective=light_cam_persp_matrix,
-        light=light_point,
-        eye=main_cam_point,
+        light_view=light_cam_view_matrix,
+        light_perspective=light_cam_persp_matrix,
+        light_point=light_point,
+        eye_point=main_cam_point,
         bias=use_bias,
         pcf=pcf,
     )
