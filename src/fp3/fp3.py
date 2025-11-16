@@ -385,29 +385,29 @@ def render_scene(view, perspective, light_cam_view, light_cam_perspective, light
     Renders the scene.
     """
 
-    shader_program["view"].write(view)
-    shader_program["perspective"].write(perspective)
+    shader_program["light"].write(light)
 
+    # Used for correct shading coord calculation; only need to set once
     shader_program["light_cam_view"].write(light_cam_view)
     shader_program["light_cam_persp"].write(light_cam_perspective)
 
-    shader_program["light"].write(light)
-
     shader_program["eye_position"].write(eye)
 
-    # Shadow map sampler
     shadow_map_sampler.use(1)
     shader_program["shadow_map"].value = 1
 
-    # 2 pass specific params
-    shader_program["bias_flag"].value = False
-    shader_program["pcf"] = 0
+    shader_program["bias_flag"].value = True
+    shader_program["pcf"] = 3
 
     # SHADOW PASS ----------------------------------------------------------------------------------
 
     shadow_fb.use()
 
-    shader_program["color_flag"].value = False
+    shader_program["view"].write(light_cam_view)
+    shader_program["perspective"].write(
+        light_cam_perspective
+    )  # Make shadowmap from light camera POV
+    shader_program["color_flag"].value = False  # Don't need color for shading
 
     render_model()
     render_floor()
@@ -416,7 +416,11 @@ def render_scene(view, perspective, light_cam_view, light_cam_perspective, light
 
     main_fb.use()
 
-    shader_program["color_flag"].value = True
+    shader_program["view"].write(view)
+    shader_program["perspective"].write(
+        perspective
+    )  # Switch to main camera POV for actual rendering
+    shader_program["color_flag"].value = True  # We do want colors now!
 
     render_model()
 
@@ -607,9 +611,6 @@ while is_running:
         light_point,
         main_cam_point,
     )
-
-    # TODO: Replace render scene call with 2 passes, one that creates shadow map, and
-    # another that uses the shadow map. Each pass calls render_scene with appropriate uniforms.
 
     if debug_mode:
         show_shadow_map()
