@@ -21,7 +21,7 @@ FLOOR_SCALE = 3  # Factor to multiply the model bound's radius by
 screen_width = 500
 screen_height = 500
 
-pygame.init()  # Initlizes its different modules. Display module is one of them.
+pygame.init()
 
 pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS, 1)
 pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 16)
